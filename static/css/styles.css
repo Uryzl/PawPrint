@@ -1,0 +1,484 @@
+/* UMBC Degree Planner Custom Styles */
+
+:root {
+    --primary-color: #1a5490;
+    --secondary-color: #ffc107;
+    --success-color: #28a745;
+    --danger-color: #dc3545;
+    --info-color: #17a2b8;
+    --warning-color: #ffc107;
+    --dark-color: #343a40;
+    --light-color: #f8f9fa;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f5f6fa;
+}
+
+/* Navbar Styling */
+.navbar-brand {
+    font-weight: bold;
+    font-size: 1.25rem;
+}
+
+.navbar-text {
+    color: rgba(255, 255, 255, 0.8) !important;
+}
+
+/* Feature Boxes */
+.feature-box {
+    text-align: center;
+    padding: 2rem 1rem;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    margin-bottom: 1rem;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.feature-box:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.feature-box h5 {
+    margin: 1rem 0 0.5rem 0;
+    color: var(--dark-color);
+}
+
+.feature-box p {
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+/* Student List */
+.student-list {
+    max-height: 400px;
+    overflow-y: auto;
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    padding: 0.5rem;
+}
+
+.student-item {
+    padding: 0.75rem;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    border-bottom: 1px solid #eee;
+}
+
+.student-item:last-child {
+    border-bottom: none;
+}
+
+.student-item:hover {
+    background-color: #e9ecef;
+}
+
+.student-item.active {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.student-item h6 {
+    margin: 0 0 0.25rem 0;
+    font-size: 0.9rem;
+}
+
+.student-item small {
+    font-size: 0.8rem;
+    opacity: 0.8;
+}
+
+/* Student Info Panel */
+.student-info-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #eee;
+}
+
+.student-info-item:last-child {
+    border-bottom: none;
+}
+
+.student-info-label {
+    font-weight: 600;
+    color: var(--dark-color);
+}
+
+.student-info-value {
+    color: #6c757d;
+}
+
+/* Cards */
+.card {
+    border: none;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
+    margin-bottom: 1.5rem;
+}
+
+.card-header {
+    background: linear-gradient(135deg, var(--primary-color), #2c6aa0);
+    color: white;
+    border-radius: 10px 10px 0 0 !important;
+    border-bottom: none;
+}
+
+.card-header h5 {
+    margin: 0;
+    font-weight: 600;
+}
+
+/* Progress Bars */
+.progress {
+    height: 10px;
+    border-radius: 5px;
+}
+
+.progress-bar {
+    border-radius: 5px;
+}
+
+/* Timeline */
+.timeline {
+    position: relative;
+}
+
+.timeline-item {
+    position: relative;
+    padding-left: 2rem;
+    padding-bottom: 1.5rem;
+}
+
+.timeline-item::before {
+    content: '';
+    position: absolute;
+    left: 0.5rem;
+    top: 0;
+    width: 2px;
+    height: 100%;
+    background: #dee2e6;
+}
+
+.timeline-item:last-child::before {
+    display: none;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: 0;
+    top: 0.25rem;
+    width: 1rem;
+    height: 1rem;
+    border-radius: 50%;
+    background: var(--primary-color);
+    border: 3px solid white;
+    box-shadow: 0 0 0 2px #dee2e6;
+}
+
+.timeline-content {
+    background: white;
+    padding: 1rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+/* Course Items */
+.course-item {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    transition: box-shadow 0.3s ease;
+}
+
+.course-item:hover {
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.course-title {
+    font-weight: 600;
+    color: var(--dark-color);
+    margin-bottom: 0.5rem;
+}
+
+.course-meta {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    font-size: 0.9rem;
+    color: #6c757d;
+    margin-bottom: 0.5rem;
+}
+
+.course-tags {
+    display: flex;
+    gap: 0.25rem;
+    flex-wrap: wrap;
+}
+
+.course-tag {
+    background: #e9ecef;
+    color: #495057;
+    padding: 0.2rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+}
+
+/* Difficulty Indicators */
+.difficulty-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.difficulty-star {
+    color: #ffc107;
+}
+
+.difficulty-star.empty {
+    color: #dee2e6;
+}
+
+/* Risk Level Badges */
+.risk-badge {
+    padding: 0.4rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.risk-low {
+    background: #d4edda;
+    color: #155724;
+}
+
+.risk-medium {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.risk-high {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+/* Chat Interface */
+.chat-messages {
+    height: 400px;
+    overflow-y: auto;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 1rem;
+    background: #f8f9fa;
+}
+
+.chat-message {
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+}
+
+.chat-message.user-message {
+    flex-direction: row-reverse;
+}
+
+.message-content {
+    background: white;
+    padding: 0.75rem 1rem;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    max-width: 80%;
+}
+
+.chat-message.user-message .message-content {
+    background: var(--primary-color);
+    color: white;
+}
+
+.chat-message.bot-message .message-content {
+    background: white;
+    border: 1px solid #dee2e6;
+}
+
+.chat-input-container {
+    margin-top: 1rem;
+}
+
+/* Term Plan Cards */
+.term-card {
+    border-left: 4px solid var(--primary-color);
+    margin-bottom: 1.5rem;
+}
+
+.term-header {
+    display: flex;
+    justify-content: between;
+    align-items: center;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.term-info {
+    display: flex;
+    gap: 2rem;
+    align-items: center;
+}
+
+.term-stat {
+    text-align: center;
+}
+
+.term-stat-value {
+    font-size: 1.25rem;
+    font-weight: bold;
+    color: var(--primary-color);
+}
+
+.term-stat-label {
+    font-size: 0.8rem;
+    color: #6c757d;
+    text-transform: uppercase;
+}
+
+/* Loading Animations */
+.loading-spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Recommendations */
+.recommendation-item {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    position: relative;
+}
+
+.recommendation-score {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: var(--primary-color);
+    color: white;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.9rem;
+}
+
+.prerequisite-item {
+    background: #e9ecef;
+    padding: 0.5rem;
+    border-radius: 4px;
+    margin: 0.25rem 0;
+    font-size: 0.9rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .term-info {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .course-meta {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+    
+    .feature-box {
+        padding: 1rem;
+    }
+    
+    .chat-messages {
+        height: 300px;
+    }
+    
+    .message-content {
+        max-width: 90%;
+    }
+}
+
+/* Utility Classes */
+.text-primary { color: var(--primary-color) !important; }
+.text-secondary { color: var(--secondary-color) !important; }
+.text-success { color: var(--success-color) !important; }
+.text-danger { color: var(--danger-color) !important; }
+.text-warning { color: var(--warning-color) !important; }
+.text-info { color: var(--info-color) !important; }
+
+.bg-primary { background-color: var(--primary-color) !important; }
+.bg-secondary { background-color: var(--secondary-color) !important; }
+.bg-success { background-color: var(--success-color) !important; }
+.bg-danger { background-color: var(--danger-color) !important; }
+.bg-warning { background-color: var(--warning-color) !important; }
+.bg-info { background-color: var(--info-color) !important; }
+
+/* Animation Classes */
+.fade-in {
+    animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.slide-in {
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(0); }
+}
+
+/* Custom scrollbar for chat and student list */
+.chat-messages::-webkit-scrollbar,
+.student-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.chat-messages::-webkit-scrollbar-track,
+.student-list::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.chat-messages::-webkit-scrollbar-thumb,
+.student-list::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+.chat-messages::-webkit-scrollbar-thumb:hover,
+.student-list::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}

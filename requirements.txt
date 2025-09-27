@@ -1,0 +1,15 @@
+# UMBC Degree Planner Dependencies
+
+# Web Framework
+Flask==2.3.3
+Flask-CORS==4.0.0
+
+# Google Gemini AI
+google-generativeai
+
+# Utilities
+python-dateutil==2.8.2
+requests==2.31.0
+
+# Development Tools (optional)
+python-dotenv==1.0.0
