@@ -8,6 +8,9 @@ import os
 import logging
 from typing import Dict, Optional, List
 import google.generativeai as genai
+from google.api_core.exceptions import NotFound, GoogleAPIError
+
+DEFAULT_MODEL = genai.GenerativeModel("models/gemini-2.5-flash")
 
 logger = logging.getLogger(__name__)
 
@@ -15,27 +18,90 @@ class GeminiClient:
     def __init__(self):
         """Initialize Gemini AI client"""
         self.api_key = os.getenv('GOOGLE_API_KEY')
+        self.model_name = os.getenv('GEMINI_MODEL', DEFAULT_MODEL)
         
         if not self.api_key:
             logger.warning("GOOGLE_API_KEY not found - Gemini features will be disabled")
             self.model = None
             return
-        
+
         try:
             genai.configure(api_key=self.api_key)
-            self.model = genai.GenerativeModel('gemini-1.5-flash')
-            logger.info("Gemini AI client initialized successfully")
+            self.model = self._load_model(self.model_name)
+            if self.model:
+                logger.info("Gemini AI client initialized successfully")
         except Exception as e:
             logger.error(f"Failed to initialize Gemini AI: {e}")
             self.model = None
 
+    def _load_model(self, model_name: str):
+        """Load a Gemini model, falling back to default when necessary."""
+        try:
+            model = genai.GenerativeModel(model_name)
+            self.model_name = model_name
+            return model
+        except NotFound as exc:
+            logger.error(f"Gemini model '{model_name}' not found: {exc}")
+            if model_name != DEFAULT_MODEL:
+                logger.info(f"Falling back to default Gemini model '{DEFAULT_MODEL}'")
+                return self._load_model(DEFAULT_MODEL)
+            return None
+        except GoogleAPIError as exc:
+            logger.error(f"Gemini API error while loading model '{model_name}': {exc}")
+            return None
+        except Exception as exc:
+            logger.error(f"Unexpected error loading Gemini model '{model_name}': {exc}")
+            return None
+
+    def _ensure_model(self) -> bool:
+        """Ensure a usable model is available, attempting fallback if needed."""
+        if self.model:
+            return True
+        if not self.api_key:
+            return False
+        self.model = self._load_model(DEFAULT_MODEL)
+        return self.model is not None
+
+    def _generate_with_retry(self, prompt: str):
+        """Generate content with automatic fallback to the default model."""
+        last_error = None
+
+        for attempt in range(2):
+            if not self._ensure_model():
+                break
+
+            try:
+                return self.model.generate_content(prompt)
+            except NotFound as exc:
+                last_error = exc
+                logger.error(f"Gemini model '{self.model_name}' not found during generation: {exc}")
+                if self.model_name == DEFAULT_MODEL:
+                    break
+                # Reset model so ensure_model reloads default on next iteration
+                self.model = None
+                self.model_name = DEFAULT_MODEL
+                continue
+            except GoogleAPIError as exc:
+                last_error = exc
+                logger.error(f"Gemini API error during generation: {exc}")
+                raise
+            except Exception as exc:
+                last_error = exc
+                logger.error(f"Unexpected error during Gemini generation: {exc}")
+                raise
+
+        if last_error:
+            raise last_error
+
+        raise RuntimeError("Gemini model unavailable")
+
     def test_connection(self) -> bool:
         """Test if Gemini AI is working"""
-        if not self.model:
+        if not self._ensure_model():
             return False
         
         try:
-            response = self.model.generate_content("Test connection. Respond with 'OK'.")
+            response = self._generate_with_retry("Test connection. Respond with 'OK'.")
             return "OK" in response.text
         except Exception as e:
             logger.error(f"Gemini connection test failed: {e}")
@@ -51,7 +117,7 @@ class GeminiClient:
             student_context: Student's academic data and history
             additional_context: Additional context like course data, similar students, etc.
         """
-        if not self.model:
+        if not self._ensure_model():
             return "AI assistant is currently unavailable. Please check your API configuration."
         
         try:
@@ -59,13 +125,19 @@ class GeminiClient:
             prompt = self._build_advisor_prompt(message, student_context, additional_context)
             
             # Generate response
-            response = self.model.generate_content(prompt)
+            response = self._generate_with_retry(prompt)
             
             if not response.text:
                 return "I'm sorry, I couldn't generate a response. Please try rephrasing your question."
             
             return response.text.strip()
             
+        except NotFound as e:
+            logger.error(f"Gemini model not found after retry: {e}")
+            return "The configured Gemini model isn't available. Please verify your GEMINI_MODEL setting."
+        except GoogleAPIError as e:
+            logger.error(f"Gemini API error while generating advice: {e}")
+            return "The AI service is temporarily unavailable due to an API error. Please try again later."
         except Exception as e:
             logger.error(f"Error getting Gemini response: {e}")
             return f"I encountered an error while processing your request: {str(e)}"
@@ -221,7 +293,7 @@ class GeminiClient:
 
     def get_study_recommendations(self, student_context: Dict, course_list: List[Dict]) -> str:
         """Get study strategy recommendations for specific courses"""
-        if not self.model:
+        if not self._ensure_model():
             return "Study recommendations are currently unavailable."
         
         try:
@@ -256,16 +328,22 @@ class GeminiClient:
             Keep recommendations practical and actionable.
             """
             
-            response = self.model.generate_content(prompt)
+            response = self._generate_with_retry(prompt)
             return response.text.strip() if response.text else "Unable to generate study recommendations."
             
+        except NotFound as e:
+            logger.error(f"Gemini model not found while generating study recommendations: {e}")
+            return "The configured Gemini model isn't available. Please verify your GEMINI_MODEL setting."
+        except GoogleAPIError as e:
+            logger.error(f"Gemini API error while generating study recommendations: {e}")
+            return "Study recommendations are temporarily unavailable due to an AI service error."
         except Exception as e:
             logger.error(f"Error getting study recommendations: {e}")
             return f"Error generating study recommendations: {str(e)}"
 
     def analyze_course_fit(self, student_context: Dict, course: Dict) -> str:
         """Analyze how well a specific course fits a student"""
-        if not self.model:
+        if not self._ensure_model():
             return "Course analysis is currently unavailable."
         
         try:
@@ -301,16 +379,22 @@ class GeminiClient:
             Be specific and actionable in your recommendations.
             """
             
-            response = self.model.generate_content(prompt)
+            response = self._generate_with_retry(prompt)
             return response.text.strip() if response.text else "Unable to analyze course fit."
             
+        except NotFound as e:
+            logger.error(f"Gemini model not found while analyzing course fit: {e}")
+            return "The configured Gemini model isn't available. Please verify your GEMINI_MODEL setting."
+        except GoogleAPIError as e:
+            logger.error(f"Gemini API error while analyzing course fit: {e}")
+            return "Course analysis is temporarily unavailable due to an AI service error."
         except Exception as e:
             logger.error(f"Error analyzing course fit: {e}")
             return f"Error analyzing course fit: {str(e)}"
 
     def get_graduation_timeline_advice(self, path_data: Dict) -> str:
         """Get advice on graduation timeline and potential optimizations"""
-        if not self.model:
+        if not self._ensure_model():
             return "Timeline advice is currently unavailable."
         
         try:
@@ -354,16 +438,24 @@ class GeminiClient:
             Focus on practical, actionable advice that considers the student's constraints.
             """
             
-            response = self.model.generate_content(prompt)
+            response = self._generate_with_retry(prompt)
             return response.text.strip() if response.text else "Unable to generate timeline advice."
             
+        except NotFound as e:
+            logger.error(f"Gemini model not found while generating timeline advice: {e}")
+            return "The configured Gemini model isn't available. Please verify your GEMINI_MODEL setting."
+        except GoogleAPIError as e:
+            logger.error(f"Gemini API error while generating timeline advice: {e}")
+            return "Timeline advice is temporarily unavailable due to an AI service error."
         except Exception as e:
             logger.error(f"Error getting timeline advice: {e}")
             return f"Error generating timeline advice: {str(e)}"
 
     def get_similar_student_insights(self, student_context: Dict, similar_students: List[Dict]) -> str:
         """Generate insights based on similar students' experiences"""
-        if not self.model or not similar_students:
+        if not similar_students:
+            return "Similar student insights are currently unavailable."
+        if not self._ensure_model():
             return "Similar student insights are currently unavailable."
         
         try:
@@ -398,9 +490,14 @@ class GeminiClient:
             Focus on evidence-based recommendations that the student can implement immediately.
             """
             
-            response = self.model.generate_content(prompt)
+            response = self._generate_with_retry(prompt)
             return response.text.strip() if response.text else "Unable to generate similar student insights."
-            
+        except NotFound as e:
+            logger.error(f"Gemini model not found while generating similar student insights: {e}")
+            return "The configured Gemini model isn't available. Please verify your GEMINI_MODEL setting."
+        except GoogleAPIError as e:
+            logger.error(f"Gemini API error while generating similar student insights: {e}")
+            return "Similar student insights are temporarily unavailable due to an AI service error."
         except Exception as e:
-            logger.error(f"Error getting similar student insights: {e}")
-            return f"Error generating insights: {str(e)}"
+            logger.error(f"Error generating similar student insights: {e}")
+            return f"Error generating similar student insights: {str(e)}"

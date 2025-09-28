@@ -32,26 +32,24 @@ class Neo4jClient:
         password = os.getenv("NEO4J_PASSWORD")
 
         if GraphDatabase is None:
-            logger.warning("Neo4j driver not installed; running in demo mode")
-            return
+            raise ImportError("The 'neo4j' Python driver is not installed. Install it with 'pip install neo4j'.")
 
         if not all([uri, user, password]):
-            logger.warning("Neo4j credentials missing; running in demo mode")
-            return
+            raise ValueError("Neo4j credentials are missing. Set NEO4J_URI, NEO4J_USERNAME, and NEO4J_PASSWORD.")
 
         try:
             self.driver = GraphDatabase.driver(uri, auth=(user, password))
             self.driver.verify_connectivity()
             logger.info("Connected to Neo4j")
         except AuthError as exc:
-            logger.error(f"Neo4j auth failed: {exc}; falling back to demo data")
-            self.driver = None
+            logger.error(f"Neo4j auth failed: {exc}")
+            raise
         except ServiceUnavailable as exc:
-            logger.error(f"Neo4j unavailable: {exc}; falling back to demo data")
-            self.driver = None
+            logger.error(f"Neo4j unavailable: {exc}")
+            raise
         except Exception as exc:
-            logger.error(f"Neo4j init error: {exc}; falling back to demo data")
-            self.driver = None
+            logger.error(f"Neo4j init error: {exc}")
+            raise
 
     def close(self):
         """Close the database connection"""
@@ -93,10 +91,8 @@ class Neo4jClient:
 
     def get_all_students(self, limit: int = 100) -> List[Dict]:
         """Get list of all students for selection"""
-        if not self.driver:
-            logger.warning("Neo4j not connected, returning demo data")
-            return self._get_demo_students()
-            
+        self._check_connection()
+        
         query = """
         MATCH (s:Student)
         OPTIONAL MATCH (s)-[:PURSUING]->(d:Degree)
@@ -113,50 +109,12 @@ class Neo4jClient:
                 return [self._convert_neo4j_types(student) for student in students]
         except Exception as e:
             logger.error(f"Error fetching students: {e}")
-            return self._get_demo_students()
-
-    def _get_demo_students(self) -> List[Dict]:
-        """Return demo student data when Neo4j is not available"""
-        return [
-            {
-                "id": "ST12345",
-                "name": "Alice Johnson",
-                "learning_style": "Visual",
-                "degree_name": "Bachelor of Science in Computer Science",
-                "expected_graduation": "2025-05-15"
-            },
-            {
-                "id": "ST23456",
-                "name": "Bob Smith",
-                "learning_style": "Kinesthetic",
-                "degree_name": "Bachelor of Arts in Computer Science",
-                "expected_graduation": "2025-12-15"
-            },
-            {
-                "id": "ST34567",
-                "name": "Carol Davis",
-                "learning_style": "Auditory",
-                "degree_name": "Bachelor of Science in Biology",
-                "expected_graduation": "2026-05-15"
-            },
-            {
-                "id": "ST45678",
-                "name": "David Wilson",
-                "learning_style": "Reading-Writing",
-                "degree_name": "Bachelor of Arts in Biology",
-                "expected_graduation": "2025-08-15"
-            }
-        ]
+            raise
 
     def search_students(self, search_term: str, limit: int = 50) -> List[Dict]:
         """Search students by name or ID"""
-        if not self.driver:
-            logger.warning("Neo4j not connected, returning filtered demo data")
-            demo_students = self._get_demo_students()
-            search_lower = search_term.lower()
-            return [s for s in demo_students 
-                   if search_lower in s['name'].lower() or search_lower in s['id'].lower()]
-            
+        self._check_connection()
+
         query = """
         MATCH (s:Student)
         OPTIONAL MATCH (s)-[:PURSUING]->(d:Degree)
@@ -175,753 +133,12 @@ class Neo4jClient:
                 return [self._convert_neo4j_types(student) for student in students]
         except Exception as e:
             logger.error(f"Error searching students: {e}")
-            # Fallback to demo data search
-            demo_students = self._get_demo_students()
-            search_lower = search_term.lower()
-            return [s for s in demo_students 
-                   if search_lower in s['name'].lower() or search_lower in s['id'].lower()]
+            raise
 
-    def _get_demo_student_details(self, student_id: str) -> Optional[Dict]:
-        """Return detailed demo student information."""
-        demo_details = {
-            "ST12345": {
-                "id": "ST12345",
-                "name": "Alice Johnson",
-                "learning_style": "Visual",
-                "preferred_course_load": 4,
-                "preferred_pace": "Accelerated",
-                "work_hours_per_week": 10,
-                "financial_aid_status": "Scholarship",
-                "preferred_instruction_mode": "Hybrid",
-                "enrollment_date": "2021-08-15",
-                "expected_graduation": "2025-05-15",
-                "degree_id": "BS-CS",
-                "degree_name": "Bachelor of Science in Computer Science",
-                "total_credits": 120
-            },
-            "ST23456": {
-                "id": "ST23456",
-                "name": "Bob Smith",
-                "learning_style": "Kinesthetic",
-                "preferred_course_load": 3,
-                "preferred_pace": "Balanced",
-                "work_hours_per_week": 20,
-                "financial_aid_status": "None",
-                "preferred_instruction_mode": "In-Person",
-                "enrollment_date": "2020-08-15",
-                "expected_graduation": "2025-12-15",
-                "degree_id": "BA-CS",
-                "degree_name": "Bachelor of Arts in Computer Science",
-                "total_credits": 120
-            },
-            "ST34567": {
-                "id": "ST34567",
-                "name": "Carol Davis",
-                "learning_style": "Auditory",
-                "preferred_course_load": 2,
-                "preferred_pace": "Steady",
-                "work_hours_per_week": 30,
-                "financial_aid_status": "Grants",
-                "preferred_instruction_mode": "Online",
-                "enrollment_date": "2022-01-15",
-                "expected_graduation": "2026-05-15",
-                "degree_id": "BS-BIO",
-                "degree_name": "Bachelor of Science in Biology",
-                "total_credits": 120
-            },
-            "ST45678": {
-                "id": "ST45678",
-                "name": "David Wilson",
-                "learning_style": "Reading-Writing",
-                "preferred_course_load": 4,
-                "preferred_pace": "Balanced",
-                "work_hours_per_week": 15,
-                "financial_aid_status": "Loans",
-                "preferred_instruction_mode": "In-Person",
-                "enrollment_date": "2021-01-10",
-                "expected_graduation": "2025-08-15",
-                "degree_id": "BA-BIO",
-                "degree_name": "Bachelor of Arts in Biology",
-                "total_credits": 120
-            }
-        }
-
-        if student_id not in demo_details:
-            logger.warning(f"Demo student details requested for unknown ID {student_id}")
-            return next(iter(demo_details.values()), None)
-        return demo_details[student_id]
-
-    def _get_demo_completed_courses(self, student_id: str) -> List[Dict]:
-        """Return demo completed courses for a student."""
-        demo_completed = {
-            "ST12345": [
-                {
-                    "course_id": "CMSC201",
-                    "course_name": "Computer Science I",
-                    "credits": 4,
-                    "department": "CMSC",
-                    "level": 200,
-                    "grade": "A",
-                    "term": "2021FA",
-                    "study_hours": 10,
-                    "difficulty": 0.4
-                },
-                {
-                    "course_id": "CMSC202",
-                    "course_name": "Computer Science II",
-                    "credits": 4,
-                    "department": "CMSC",
-                    "level": 200,
-                    "grade": "A-",
-                    "term": "2022SP",
-                    "study_hours": 12,
-                    "difficulty": 0.5
-                },
-                {
-                    "course_id": "MATH151",
-                    "course_name": "Calculus I",
-                    "credits": 4,
-                    "department": "MATH",
-                    "level": 100,
-                    "grade": "B+",
-                    "term": "2021FA",
-                    "study_hours": 8,
-                    "difficulty": 0.6
-                }
-            ],
-            "ST23456": [
-                {
-                    "course_id": "CMSC201",
-                    "course_name": "Computer Science I",
-                    "credits": 4,
-                    "department": "CMSC",
-                    "level": 200,
-                    "grade": "B",
-                    "term": "2020FA",
-                    "study_hours": 9,
-                    "difficulty": 0.5
-                },
-                {
-                    "course_id": "ENGL100",
-                    "course_name": "Composition",
-                    "credits": 3,
-                    "department": "ENGL",
-                    "level": 100,
-                    "grade": "A",
-                    "term": "2020FA",
-                    "study_hours": 5,
-                    "difficulty": 0.3
-                }
-            ],
-            "ST34567": [
-                {
-                    "course_id": "BIOL141",
-                    "course_name": "Foundations of Biology",
-                    "credits": 4,
-                    "department": "BIOL",
-                    "level": 100,
-                    "grade": "A",
-                    "term": "2022SP",
-                    "study_hours": 11,
-                    "difficulty": 0.4
-                }
-            ],
-            "ST45678": [
-                {
-                    "course_id": "BIOL141",
-                    "course_name": "Foundations of Biology",
-                    "credits": 4,
-                    "department": "BIOL",
-                    "level": 100,
-                    "grade": "B+",
-                    "term": "2021SP",
-                    "study_hours": 9,
-                    "difficulty": 0.5
-                },
-                {
-                    "course_id": "CHEM101",
-                    "course_name": "Principles of Chemistry I",
-                    "credits": 4,
-                    "department": "CHEM",
-                    "level": 100,
-                    "grade": "B",
-                    "term": "2021FA",
-                    "study_hours": 10,
-                    "difficulty": 0.6
-                }
-            ]
-        }
-
-        return demo_completed.get(student_id, [])
-
-    def _get_demo_enrolled_courses(self, student_id: str) -> List[Dict]:
-        """Return demo currently enrolled courses for a student."""
-        demo_enrolled = {
-            "ST12345": [
-                {
-                    "course_id": "CMSC331",
-                    "course_name": "Principles of Programming Languages",
-                    "credits": 3,
-                    "department": "CMSC",
-                    "level": 300,
-                    "term": "2024SP",
-                    "expected_grade": "A-"
-                },
-                {
-                    "course_id": "STAT355",
-                    "course_name": "Probability and Statistics",
-                    "credits": 4,
-                    "department": "STAT",
-                    "level": 300,
-                    "term": "2024SP",
-                    "expected_grade": "B+"
-                }
-            ],
-            "ST23456": [
-                {
-                    "course_id": "CMSC313",
-                    "course_name": "Computer Organization",
-                    "credits": 3,
-                    "department": "CMSC",
-                    "level": 300,
-                    "term": "2024SP",
-                    "expected_grade": "B"
-                }
-            ],
-            "ST34567": [
-                {
-                    "course_id": "BIOL303",
-                    "course_name": "Molecular and General Genetics",
-                    "credits": 4,
-                    "department": "BIOL",
-                    "level": 300,
-                    "term": "2024SP",
-                    "expected_grade": "A-"
-                }
-            ],
-            "ST45678": [
-                {
-                    "course_id": "BIOL251",
-                    "course_name": "Human Anatomy and Physiology I",
-                    "credits": 4,
-                    "department": "BIOL",
-                    "level": 200,
-                    "term": "2024SP",
-                    "expected_grade": "B+"
-                }
-            ]
-        }
-
-        return demo_enrolled.get(student_id, [])
-
-    def _get_demo_degree_info(self, student_id: str) -> Optional[Dict]:
-        """Return demo degree information for a student."""
-        student_degree_map = {
-            "ST12345": "BS-CS",
-            "ST23456": "BA-CS",
-            "ST34567": "BS-BIO",
-            "ST45678": "BA-BIO"
-        }
-
-        degree_id = student_degree_map.get(student_id)
-        if not degree_id:
-            logger.warning(f"Demo degree info requested for unknown ID {student_id}")
-            return None
-
-        demo_degrees = {
-            "BS-CS": {
-                "degree_id": "BS-CS",
-                "degree_name": "Bachelor of Science in Computer Science",
-                "department": "Computer Science and Electrical Engineering",
-                "degree_type": "B.S.",
-                "total_credits": 120,
-                "requirement_groups": [
-                    {
-                        "id": "BSCS-CORE",
-                        "name": "Core Computer Science",
-                        "required_courses": 8,
-                        "credits_required": 32,
-                        "course_count": 10
-                    },
-                    {
-                        "id": "BSCS-MATH",
-                        "name": "Mathematics",
-                        "required_courses": 4,
-                        "credits_required": 16,
-                        "course_count": 6
-                    }
-                ]
-            },
-            "BA-CS": {
-                "degree_id": "BA-CS",
-                "degree_name": "Bachelor of Arts in Computer Science",
-                "department": "Computer Science and Electrical Engineering",
-                "degree_type": "B.A.",
-                "total_credits": 120,
-                "requirement_groups": [
-                    {
-                        "id": "BACS-CORE",
-                        "name": "Core Computer Science",
-                        "required_courses": 6,
-                        "credits_required": 24,
-                        "course_count": 8
-                    },
-                    {
-                        "id": "BACS-CORE-DISC",
-                        "name": "Disciplinary Electives",
-                        "required_courses": 4,
-                        "credits_required": 12,
-                        "course_count": 6
-                    }
-                ]
-            },
-            "BS-BIO": {
-                "degree_id": "BS-BIO",
-                "degree_name": "Bachelor of Science in Biology",
-                "department": "Biological Sciences",
-                "degree_type": "B.S.",
-                "total_credits": 120,
-                "requirement_groups": [
-                    {
-                        "id": "BSBIO-CORE",
-                        "name": "Core Biology",
-                        "required_courses": 7,
-                        "credits_required": 28,
-                        "course_count": 9
-                    },
-                    {
-                        "id": "BSBIO-LAB",
-                        "name": "Laboratory Requirements",
-                        "required_courses": 3,
-                        "credits_required": 9,
-                        "course_count": 4
-                    }
-                ]
-            },
-            "BA-BIO": {
-                "degree_id": "BA-BIO",
-                "degree_name": "Bachelor of Arts in Biology",
-                "department": "Biological Sciences",
-                "degree_type": "B.A.",
-                "total_credits": 120,
-                "requirement_groups": [
-                    {
-                        "id": "BABIO-CORE",
-                        "name": "Core Biology",
-                        "required_courses": 6,
-                        "credits_required": 24,
-                        "course_count": 8
-                    },
-                    {
-                        "id": "BABIO-ELECT",
-                        "name": "Biology Electives",
-                        "required_courses": 4,
-                        "credits_required": 12,
-                        "course_count": 6
-                    }
-                ]
-            }
-        }
-
-        return demo_degrees.get(degree_id)
-
-    def _get_demo_course_catalog(self) -> Dict[str, Dict]:
-        """Central catalog for demo course metadata and relationships."""
-        if not hasattr(self, "_demo_course_catalog"):
-            self._demo_course_catalog = {
-                "CMSC201": {
-                    "course_id": "CMSC201",
-                    "course_name": "Computer Science I",
-                    "credits": 4,
-                    "department": "CMSC",
-                    "level": 200,
-                    "avg_difficulty": 2.5,
-                    "instruction_modes": ["In-Person", "Hybrid"],
-                    "tags": ["hands-on", "visual"],
-                    "prerequisites": [],
-                    "unlocks": ["CMSC202"],
-                    "terms_offered": ["2024SP", "2024FA"],
-                    "requirement_groups": ["BSCS-CORE", "BACS-CORE"]
-                },
-                "CMSC202": {
-                    "course_id": "CMSC202",
-                    "course_name": "Computer Science II",
-                    "credits": 4,
-                    "department": "CMSC",
-                    "level": 200,
-                    "avg_difficulty": 3.0,
-                    "instruction_modes": ["In-Person", "Online"],
-                    "tags": ["project", "hands-on"],
-                    "prerequisites": ["CMSC201"],
-                    "unlocks": ["CMSC313", "CMSC331"],
-                    "terms_offered": ["2024SP", "2024FA"],
-                    "requirement_groups": ["BSCS-CORE", "BACS-CORE"]
-                },
-                "CMSC313": {
-                    "course_id": "CMSC313",
-                    "course_name": "Computer Organization",
-                    "credits": 3,
-                    "department": "CMSC",
-                    "level": 300,
-                    "avg_difficulty": 3.4,
-                    "instruction_modes": ["In-Person"],
-                    "tags": ["hands-on", "lab"],
-                    "prerequisites": ["CMSC202"],
-                    "unlocks": ["CMSC411"],
-                    "terms_offered": ["2024SP"],
-                    "requirement_groups": ["BSCS-CORE", "BACS-CORE"]
-                },
-                "CMSC331": {
-                    "course_id": "CMSC331",
-                    "course_name": "Principles of Programming Languages",
-                    "credits": 3,
-                    "department": "CMSC",
-                    "level": 300,
-                    "avg_difficulty": 3.2,
-                    "instruction_modes": ["In-Person", "Hybrid"],
-                    "tags": ["writing", "analysis"],
-                    "prerequisites": ["CMSC202"],
-                    "unlocks": ["CMSC431"],
-                    "terms_offered": ["2024SP", "2024FA"],
-                    "requirement_groups": ["BSCS-CORE", "BACS-CORE"]
-                },
-                "CMSC341": {
-                    "course_id": "CMSC341",
-                    "course_name": "Data Structures",
-                    "credits": 3,
-                    "department": "CMSC",
-                    "level": 300,
-                    "avg_difficulty": 3.3,
-                    "instruction_modes": ["In-Person", "Hybrid"],
-                    "tags": ["visual", "project"],
-                    "prerequisites": ["CMSC202"],
-                    "unlocks": ["CMSC441"],
-                    "terms_offered": ["2024SP", "2024FA"],
-                    "requirement_groups": ["BSCS-CORE"]
-                },
-                "STAT355": {
-                    "course_id": "STAT355",
-                    "course_name": "Probability and Statistics",
-                    "credits": 4,
-                    "department": "STAT",
-                    "level": 300,
-                    "avg_difficulty": 2.8,
-                    "instruction_modes": ["In-Person", "Online"],
-                    "tags": ["visual", "analysis"],
-                    "prerequisites": ["MATH152"],
-                    "unlocks": [],
-                    "terms_offered": ["2024SP"],
-                    "requirement_groups": ["BSCS-MATH"]
-                },
-                "ENGL100": {
-                    "course_id": "ENGL100",
-                    "course_name": "Composition",
-                    "credits": 3,
-                    "department": "ENGL",
-                    "level": 100,
-                    "avg_difficulty": 2.0,
-                    "instruction_modes": ["In-Person", "Online"],
-                    "tags": ["writing"],
-                    "prerequisites": [],
-                    "unlocks": [],
-                    "terms_offered": ["2024SP", "2024FA"],
-                    "requirement_groups": ["BACS-CORE-DISC", "BABIO-ELECT"]
-                },
-                "MATH151": {
-                    "course_id": "MATH151",
-                    "course_name": "Calculus I",
-                    "credits": 4,
-                    "department": "MATH",
-                    "level": 100,
-                    "avg_difficulty": 3.0,
-                    "instruction_modes": ["In-Person"],
-                    "tags": ["visual", "analysis"],
-                    "prerequisites": [],
-                    "unlocks": ["MATH152"],
-                    "terms_offered": ["2024SP", "2024FA"],
-                    "requirement_groups": ["BSCS-MATH"]
-                },
-                "MATH152": {
-                    "course_id": "MATH152",
-                    "course_name": "Calculus II",
-                    "credits": 4,
-                    "department": "MATH",
-                    "level": 100,
-                    "avg_difficulty": 3.1,
-                    "instruction_modes": ["In-Person"],
-                    "tags": ["visual", "analysis"],
-                    "prerequisites": ["MATH151"],
-                    "unlocks": ["STAT355"],
-                    "terms_offered": ["2024FA"],
-                    "requirement_groups": ["BSCS-MATH"]
-                },
-                "BIOL141": {
-                    "course_id": "BIOL141",
-                    "course_name": "Foundations of Biology",
-                    "credits": 4,
-                    "department": "BIOL",
-                    "level": 100,
-                    "avg_difficulty": 2.7,
-                    "instruction_modes": ["In-Person", "Lab"],
-                    "tags": ["hands-on", "lab"],
-                    "prerequisites": [],
-                    "unlocks": ["BIOL303", "BIOL251"],
-                    "terms_offered": ["2024SP", "2024FA"],
-                    "requirement_groups": ["BSBIO-CORE", "BABIO-CORE"]
-                },
-                "BIOL251": {
-                    "course_id": "BIOL251",
-                    "course_name": "Human Anatomy and Physiology I",
-                    "credits": 4,
-                    "department": "BIOL",
-                    "level": 200,
-                    "avg_difficulty": 3.1,
-                    "instruction_modes": ["In-Person", "Lab"],
-                    "tags": ["lab", "hands-on"],
-                    "prerequisites": ["BIOL141"],
-                    "unlocks": [],
-                    "terms_offered": ["2024SP"],
-                    "requirement_groups": ["BSBIO-CORE", "BABIO-CORE"]
-                },
-                "BIOL303": {
-                    "course_id": "BIOL303",
-                    "course_name": "Molecular and General Genetics",
-                    "credits": 4,
-                    "department": "BIOL",
-                    "level": 300,
-                    "avg_difficulty": 3.6,
-                    "instruction_modes": ["In-Person", "Lab"],
-                    "tags": ["lab", "research"],
-                    "prerequisites": ["BIOL141"],
-                    "unlocks": ["BIOL424"],
-                    "terms_offered": ["2024SP", "2024FA"],
-                    "requirement_groups": ["BSBIO-CORE", "BABIO-ELECT", "BSBIO-LAB"]
-                },
-                "CHEM101": {
-                    "course_id": "CHEM101",
-                    "course_name": "Principles of Chemistry I",
-                    "credits": 4,
-                    "department": "CHEM",
-                    "level": 100,
-                    "avg_difficulty": 3.0,
-                    "instruction_modes": ["In-Person", "Lab"],
-                    "tags": ["lab", "analysis"],
-                    "prerequisites": [],
-                    "unlocks": ["CHEM102"],
-                    "terms_offered": ["2024FA"],
-                    "requirement_groups": ["BSBIO-CORE", "BABIO-CORE"]
-                }
-            }
-        return self._demo_course_catalog
-
-    def _clone_demo_course(self, course: Dict) -> Dict:
-        """Return a shallow copy of a course dict with standardized keys."""
-        return {
-            "course_id": course["course_id"],
-            "course_name": course["course_name"],
-            "credits": course["credits"],
-            "department": course["department"],
-            "level": course["level"],
-            "avg_difficulty": course.get("avg_difficulty", 0.6),
-            "instruction_modes": course.get("instruction_modes", []),
-            "tags": course.get("tags", [])
-        }
-
-    def _get_demo_available_courses(self, student_id: str, term: str = None) -> List[Dict]:
-        catalog = self._get_demo_course_catalog()
-        completed = {c["course_id"] for c in self._get_demo_completed_courses(student_id)}
-        enrolled = {c["course_id"] for c in self._get_demo_enrolled_courses(student_id)}
-
-        available = []
-        for course_id, data in catalog.items():
-            if course_id in completed or course_id in enrolled:
-                continue
-
-            prereqs = set(data.get("prerequisites", []))
-            if not prereqs.issubset(completed):
-                continue
-
-            if term and term not in data.get("terms_offered", []):
-                continue
-
-            course_entry = self._clone_demo_course(data)
-            course_entry["avg_difficulty"] = data.get("avg_difficulty", 0.6)
-            available.append(course_entry)
-
-        available.sort(key=lambda c: (c.get("level", 400), c.get("course_name", "")))
-        return available
-
-    def _get_demo_course_prerequisites(self, course_id: str) -> List[Dict]:
-        catalog = self._get_demo_course_catalog()
-        course = catalog.get(course_id)
-        if not course:
-            return []
-
-        prereq_ids = course.get("prerequisites", [])
-        results = []
-        for pid in prereq_ids:
-            prereq = catalog.get(pid)
-            if prereq:
-                prereq_entry = self._clone_demo_course(prereq)
-                results.append(prereq_entry)
-        results.sort(key=lambda c: (c.get("level", 400), c.get("course_name", "")))
-        return results
-
-    def _get_demo_courses_unlocked_by(self, course_id: str) -> List[Dict]:
-        catalog = self._get_demo_course_catalog()
-        unlocked_courses = []
-        for course in catalog.values():
-            if course_id in course.get("prerequisites", []):
-                unlocked_courses.append(self._clone_demo_course(course))
-
-        unlocked_courses.sort(key=lambda c: (c.get("level", 400), c.get("course_name", "")))
-        return unlocked_courses
-
-    def _get_demo_similar_students(self, student_id: str, min_similarity: float) -> List[Dict]:
-        demo_students = {
-            "ST12345": [
-                {"id": "ST23456", "name": "Bob Smith", "learning_style": "Kinesthetic", "similarity": 0.78, "similarity_type": "SIMILAR_PERFORMANCE", "avg_gpa": 3.3, "courses_completed": 24},
-                {"id": "ST34567", "name": "Carol Davis", "learning_style": "Auditory", "similarity": 0.72, "similarity_type": "SIMILAR_LEARNING_STYLE", "avg_gpa": 3.6, "courses_completed": 18}
-            ],
-            "ST23456": [
-                {"id": "ST12345", "name": "Alice Johnson", "learning_style": "Visual", "similarity": 0.74, "similarity_type": "SIMILAR_PERFORMANCE", "avg_gpa": 3.5, "courses_completed": 28}
-            ],
-            "ST34567": [
-                {"id": "ST45678", "name": "David Wilson", "learning_style": "Reading-Writing", "similarity": 0.76, "similarity_type": "SIMILAR_LEARNING_STYLE", "avg_gpa": 3.2, "courses_completed": 20}
-            ],
-            "ST45678": [
-                {"id": "ST34567", "name": "Carol Davis", "learning_style": "Auditory", "similarity": 0.81, "similarity_type": "SIMILAR_PERFORMANCE", "avg_gpa": 3.4, "courses_completed": 22}
-            ]
-        }
-
-        candidates = demo_students.get(student_id, [])
-        return [student for student in candidates if student.get("similarity", 0) >= min_similarity]
-
-    def _get_demo_optimal_course_sequence(self, student_id: str) -> List[Dict]:
-        catalog = self._get_demo_course_catalog()
-        available = self._get_demo_available_courses(student_id)
-        student = self._get_demo_student_details(student_id) or {}
-        learning_style = student.get("learning_style", "")
-        completed_ids = {c["course_id"] for c in self._get_demo_completed_courses(student_id)}
-
-        demo_sequences = {
-            "ST12345": ["MATH152", "STAT355", "CMSC331", "CMSC341", "CMSC313"],
-            "ST23456": ["CMSC331", "CMSC313", "ENGL100", "MATH152"],
-            "ST34567": ["BIOL251", "BIOL303", "CHEM101", "ENGL100"],
-            "ST45678": ["BIOL303", "BIOL251", "CHEM101", "ENGL100"]
-        }
-        course_order = demo_sequences.get(student_id)
-        if course_order:
-            ordered_courses = [course for cid in course_order for course in available if course["course_id"] == cid]
-            remaining = [course for course in available if course["course_id"] not in course_order]
-            ordered_courses.extend(remaining)
-        else:
-            ordered_courses = available
-
-        style_mappings = {
-            'Visual': ['visual', 'graphics', 'charts', 'diagrams', 'visualization'],
-            'Auditory': ['discussion', 'lecture', 'presentation', 'verbal'],
-            'Kinesthetic': ['hands-on', 'lab', 'practical', 'project', 'interactive'],
-            'Reading-Writing': ['writing', 'reading', 'research', 'analysis', 'documentation']
-        }
-        preferred_tags = [tag.lower() for tag in style_mappings.get(learning_style, [])]
-
-        sequence = []
-        for course in ordered_courses:
-            catalog_entry = catalog.get(course["course_id"], {})
-            tags = [tag.lower() for tag in catalog_entry.get("tags", [])]
-            if tags and preferred_tags:
-                matches = sum(1 for tag in tags if any(pref in tag for pref in preferred_tags))
-                learning_match = min(matches / len(tags), 1.0)
-            else:
-                learning_match = 0.5
-
-            avg_difficulty = catalog_entry.get("avg_difficulty", 3.0)
-            unlocks = catalog_entry.get("unlocks", [])
-            similar_students = self._get_demo_similar_students(student_id, 0.0)
-            prereq_entries = [p for p in self._get_demo_course_prerequisites(course["course_id"]) if p["course_id"] not in completed_ids]
-
-            sequence.append({
-                **course,
-                "priority_score": len(unlocks) * 10 + course.get("credits", 3) * 2,
-                "prerequisites": prereq_entries,
-                "unlocks": self._get_demo_courses_unlocked_by(course["course_id"]),
-                "learning_style_match": learning_match,
-                "difficulty_prediction": avg_difficulty,
-                "predicted_difficulty": avg_difficulty,
-                "success_rate": 0.8,
-                "similar_student_data": len(similar_students),
-                "courses_unlocked": len(unlocks),
-                "instruction_modes": catalog_entry.get("instruction_modes", [])
-            })
-
-        sequence.sort(key=lambda c: (c.get("level", 400), c.get("predicted_difficulty", 1.0), -c.get("courses_unlocked", 0)))
-        return sequence
-
-    def _get_demo_degree_requirements_progress(self, student_id: str) -> Dict:
-        degree = self._get_demo_degree_info(student_id)
-        if not degree:
-            return {
-                "requirements": [],
-                "total_credits_required": 0,
-                "total_credits_completed": 0,
-                "total_credits_enrolled": 0,
-                "total_credits_remaining": 0,
-                "completion_percentage": 0
-            }
-
-        catalog = self._get_demo_course_catalog()
-        completed = self._get_demo_completed_courses(student_id)
-        enrolled = self._get_demo_enrolled_courses(student_id)
-        completed_ids = {c["course_id"] for c in completed}
-        enrolled_ids = {c["course_id"] for c in enrolled}
-
-        requirements = []
-        total_required = 0
-        total_completed = 0
-        total_enrolled = 0
-
-        for group in degree.get("requirement_groups", []):
-            group_id = group.get("id")
-            all_courses = [self._clone_demo_course(course) for course in catalog.values() if group_id in course.get("requirement_groups", [])]
-            completed_courses = [self._clone_demo_course(catalog[cid]) for cid in completed_ids if cid in catalog and group_id in catalog[cid].get("requirement_groups", [])]
-            enrolled_courses = [self._clone_demo_course(catalog[cid]) for cid in enrolled_ids if cid in catalog and group_id in catalog[cid].get("requirement_groups", [])]
-
-            completed_credits = sum(course["credits"] for course in completed_courses)
-            enrolled_credits = sum(course["credits"] for course in enrolled_courses)
-
-            total_required += group.get("credits_required", 0)
-            total_completed += completed_credits
-            total_enrolled += enrolled_credits
-
-            requirements.append({
-                "requirement_id": group_id,
-                "requirement_name": group.get("name"),
-                "credits_required": group.get("credits_required", 0),
-                "courses_required": group.get("required_courses", 0),
-                "completed_credits": completed_credits,
-                "enrolled_credits": enrolled_credits,
-                "all_courses": all_courses,
-                "completed_courses": completed_courses,
-                "enrolled_courses": enrolled_courses
-            })
-
-        total_remaining = max(total_required - total_completed - total_enrolled, 0)
-        completion_percentage = (total_completed / total_required * 100) if total_required else 0
-
-        return {
-            "requirements": requirements,
-            "total_credits_required": total_required,
-            "total_credits_completed": total_completed,
-            "total_credits_enrolled": total_enrolled,
-            "total_credits_remaining": total_remaining,
-            "completion_percentage": completion_percentage
-        }
 
     def get_student_details(self, student_id: str) -> Optional[Dict]:
         """Get detailed information about a specific student"""
-        if not self.driver:
-            return self._get_demo_student_details(student_id)
+        self._check_connection()
             
         query = """
         MATCH (s:Student {id: $student_id})
@@ -944,16 +161,14 @@ class Neo4jClient:
                 record = result.single()
                 if record:
                     return self._convert_neo4j_types(dict(record))
-                else:
-                    return self._get_demo_student_details(student_id)
+                return None
         except Exception as e:
             logger.error(f"Error fetching student details: {e}")
-            return self._get_demo_student_details(student_id)
+            raise
 
     def get_student_completed_courses(self, student_id: str) -> List[Dict]:
         """Get courses completed by a student"""
-        if not self.driver:
-            return self._get_demo_completed_courses(student_id)
+        self._check_connection()
             
         query = """
         MATCH (s:Student {id: $student_id})-[comp:COMPLETED]->(c:Course)
@@ -971,12 +186,11 @@ class Neo4jClient:
                 return [self._convert_neo4j_types(course) for course in courses]
         except Exception as e:
             logger.error(f"Error fetching completed courses: {e}")
-            return self._get_demo_completed_courses(student_id)
+            raise
 
     def get_student_enrolled_courses(self, student_id: str) -> List[Dict]:
         """Get courses currently enrolled by a student"""
-        if not self.driver:
-            return self._get_demo_enrolled_courses(student_id)
+        self._check_connection()
             
         query = """
         MATCH (s:Student {id: $student_id})-[enr:ENROLLED_IN]->(c:Course)
@@ -993,12 +207,11 @@ class Neo4jClient:
                 return [self._convert_neo4j_types(course) for course in courses]
         except Exception as e:
             logger.error(f"Error fetching enrolled courses: {e}")
-            return self._get_demo_enrolled_courses(student_id)
+            raise
 
     def get_student_degree(self, student_id: str) -> Optional[Dict]:
         """Get degree program information for a student"""
-        if not self.driver:
-            return self._get_demo_degree_info(student_id)
+        self._check_connection()
             
         query = """
         MATCH (s:Student {id: $student_id})-[:PURSUING]->(d:Degree)
@@ -1022,16 +235,14 @@ class Neo4jClient:
                 record = result.single()
                 if record:
                     return self._convert_neo4j_types(dict(record))
-                else:
-                    return self._get_demo_degree_info(student_id)
+                return None
         except Exception as e:
             logger.error(f"Error fetching degree info: {e}")
-            return self._get_demo_degree_info(student_id)
+            raise
 
     def get_available_courses(self, student_id: str, term: str = None) -> List[Dict]:
         """Get courses available to a student (prerequisites met, not already taken)"""
-        if not self.driver:
-            return self._get_demo_available_courses(student_id, term)
+        self._check_connection()
 
         query = """
         MATCH (s:Student {id: $student_id})-[:PURSUING]->(d:Degree)
@@ -1069,8 +280,7 @@ class Neo4jClient:
 
     def get_course_prerequisites(self, course_id: str) -> List[Dict]:
         """Get prerequisites for a specific course"""
-        if not self.driver:
-            return self._get_demo_course_prerequisites(course_id)
+        self._check_connection()
 
         query = """
         MATCH (prereq:Course)-[:PREREQUISITE_FOR]->(c:Course {id: $course_id})
@@ -1085,8 +295,7 @@ class Neo4jClient:
 
     def get_courses_unlocked_by(self, course_id: str) -> List[Dict]:
         """Get courses that would be unlocked by taking a specific course"""
-        if not self.driver:
-            return self._get_demo_courses_unlocked_by(course_id)
+        self._check_connection()
 
         query = """
         MATCH (c:Course {id: $course_id})-[:PREREQUISITE_FOR]->(unlocked:Course)
@@ -1101,8 +310,7 @@ class Neo4jClient:
 
     def get_similar_students(self, student_id: str, min_similarity: float = 0.7) -> List[Dict]:
         """Find students similar to the given student"""
-        if not self.driver:
-            return self._get_demo_similar_students(student_id, min_similarity)
+        self._check_connection()
 
         query = """
         MATCH (s:Student {id: $student_id})
@@ -1154,8 +362,7 @@ class Neo4jClient:
 
     def get_optimal_course_sequence(self, student_id: str) -> List[Dict]:
         """Find optimal course sequence considering prerequisites and learning style"""
-        if not self.driver:
-            return self._get_demo_optimal_course_sequence(student_id)
+        self._check_connection()
 
         query = """
         // Get student's degree and available courses
@@ -1204,8 +411,7 @@ class Neo4jClient:
 
     def get_degree_requirements_progress(self, student_id: str) -> Dict:
         """Get detailed progress on degree requirements"""
-        if not self.driver:
-            return self._get_demo_degree_requirements_progress(student_id)
+        self._check_connection()
 
         query = """
         MATCH (s:Student {id: $student_id})-[:PURSUING]->(d:Degree)
@@ -1254,9 +460,19 @@ class Neo4jClient:
             requirements = [dict(record) for record in result]
             
             # Calculate overall progress
-            total_required = sum(req['credits_required'] for req in requirements)
-            total_completed = sum(req['completed_credits'] for req in requirements)
-            total_enrolled = sum(req['enrolled_credits'] for req in requirements)
+            def _numeric(value, default=0):
+                if isinstance(value, (int, float)):
+                    return value
+                if value in (None, ""):
+                    return default
+                try:
+                    return float(value)
+                except (TypeError, ValueError):
+                    return default
+
+            total_required = sum(_numeric(req.get('credits_required')) for req in requirements)
+            total_completed = sum(_numeric(req.get('completed_credits')) for req in requirements)
+            total_enrolled = sum(_numeric(req.get('enrolled_credits')) for req in requirements)
             
             return {
                 "requirements": requirements,

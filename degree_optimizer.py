@@ -17,6 +17,18 @@ class DegreeOptimizer:
         self.neo4j = neo4j_client
         self.gemini = gemini_client
         
+    @staticmethod
+    def _ensure_number(value, default):
+        """Return a numeric value, falling back to default when missing."""
+        if isinstance(value, (int, float)):
+            return value
+        try:
+            if value is not None:
+                return float(value)
+        except (TypeError, ValueError):
+            pass
+        return default
+
     def find_optimal_path(self, student_id: str) -> Dict:
         """
         Find the fastest path to graduation for a student
@@ -120,7 +132,7 @@ class DegreeOptimizer:
         score += learning_style_bonus
         
         # 3. Course level (lower level = higher priority for foundational courses)
-        level = course.get('level', 400)
+        level = self._ensure_number(course.get('level'), 400)
         level_score = (500 - level) / 100 * 5
         score += level_score
         
@@ -129,12 +141,12 @@ class DegreeOptimizer:
         if similar_students:
             # This would require additional queries to get success rates
             # For now, use a basic heuristic based on average difficulty
-            avg_difficulty = course.get('avg_difficulty', 3.0)
+            avg_difficulty = self._ensure_number(course.get('avg_difficulty'), 3.0)
             difficulty_penalty = (avg_difficulty - 1) * -3
             score += difficulty_penalty
         
         # 5. Credits (more credits = higher priority for efficiency)
-        credits = course.get('credits', 3)
+        credits = self._ensure_number(course.get('credits'), 3)
         credit_bonus = credits * 2
         score += credit_bonus
         
@@ -170,7 +182,7 @@ class DegreeOptimizer:
 
     def _predict_difficulty(self, course: Dict, context: Dict) -> float:
         """Predict difficulty of a course for this specific student"""
-        base_difficulty = course.get('avg_difficulty', 3.0)
+        base_difficulty = self._ensure_number(course.get('avg_difficulty'), 3.0)
         student = context['student']
         similar_students = context.get('similar_students', [])
         
@@ -240,8 +252,8 @@ class DegreeOptimizer:
                 if courses_added >= max_courses_per_term:
                     break
                 
-                credits = course.get('credits', 3)
-                difficulty = course.get('difficulty_prediction', 3.0)
+                credits = self._ensure_number(course.get('credits'), 3)
+                difficulty = self._ensure_number(course.get('difficulty_prediction'), 3.0)
                 
                 # Check if adding this course would be too much
                 if total_credits + credits > max_courses_per_term * 4:  # Max ~4 credits per course slot
@@ -299,9 +311,9 @@ class DegreeOptimizer:
 
     def _calculate_term_risk(self, term: Dict) -> str:
         """Calculate risk level for a term"""
-        avg_difficulty = term.get('estimated_difficulty', 0)
+        avg_difficulty = self._ensure_number(term.get('estimated_difficulty'), 0)
         course_count = len(term.get('courses', []))
-        total_credits = term.get('total_credits', 0)
+        total_credits = self._ensure_number(term.get('total_credits'), 0)
         
         risk_score = 0
         
@@ -465,10 +477,13 @@ class DegreeOptimizer:
         """Prepare course sequence summary for AI"""
         summary = ""
         for i, course in enumerate(courses, 1):
+            credits = self._ensure_number(course.get('credits'), 0)
+            level = self._ensure_number(course.get('level'), 0)
+            difficulty = self._ensure_number(course.get('difficulty_prediction'), 0)
             summary += f"{i}. {course.get('course_name', 'Unknown')} ({course.get('course_id', '')}) - "
-            summary += f"{course.get('credits', 0)} credits, "
-            summary += f"Level {course.get('level', 0)}, "
-            summary += f"Predicted Difficulty: {course.get('difficulty_prediction', 0):.1f}/5.0\n"
+            summary += f"{credits} credits, "
+            summary += f"Level {level}, "
+            summary += f"Predicted Difficulty: {difficulty:.1f}/5.0\n"
         return summary
 
     def _calculate_average_grade(self, completed_courses: List[Dict]) -> str:
@@ -486,7 +501,7 @@ class DegreeOptimizer:
         
         for course in completed_courses:
             grade = course.get('grade', 'F')
-            credits = course.get('credits', 3)
+            credits = self._ensure_number(course.get('credits'), 3)
             points = grade_points.get(grade, 0.0)
             total_points += points * credits
             total_credits += credits

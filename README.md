@@ -163,6 +163,7 @@ NEO4J_PASSWORD=your_password
 
 # Gemini AI Configuration (optional)
 GOOGLE_API_KEY=your_api_key_here
+GEMINI_MODEL=gemini-1.5-flash-001  # optional override
 
 # Flask Configuration
 FLASK_ENV=development  # or production
@@ -190,6 +191,7 @@ The application expects the UMBC Neo4j dataset with these node types:
 
 2. **AI Features Not Working**
    - Verify GOOGLE_API_KEY is set
+   - Confirm the Gemini model name matches an available model (default: `models/gemini-2.5-flash`)
    - Check API quota and billing
    - Application will run without AI (limited features)
 
