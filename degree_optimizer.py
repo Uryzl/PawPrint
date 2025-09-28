@@ -5,7 +5,7 @@ Finds optimal graduation paths considering learning styles and course history
 """
 
 import logging
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional, Tuple, Set
 from datetime import datetime, timedelta
 from collections import defaultdict, deque
 import heapq
@@ -35,7 +35,8 @@ class DegreeOptimizer:
             optimal_sequence = self._calculate_optimal_sequence(context, degree_progress)
             
             # Generate term-by-term plan
-            term_plan = self._generate_term_plan(student, optimal_sequence)
+            completed_history = {c['course_id'] for c in context['completed_courses']}
+            term_plan = self._generate_term_plan(student, optimal_sequence, completed_history)
             
             # Get AI recommendations
             ai_insights = self._get_ai_recommendations(context, optimal_sequence)
@@ -185,11 +186,12 @@ class DegreeOptimizer:
         
         return max(1.0, min(5.0, predicted_difficulty))
 
-    def _generate_term_plan(self, student: Dict, optimal_sequence: List[Dict]) -> List[Dict]:
+    def _generate_term_plan(self, student: Dict, optimal_sequence: List[Dict], completed_history: Optional[Set[str]] = None) -> List[Dict]:
         """Generate term-by-term course plan"""
         preferred_load = student.get('preferred_course_load', 4)
         preferred_pace = student.get('preferred_pace', 'Standard')
         work_hours = student.get('work_hours_per_week', 0)
+        completed_history = set(completed_history or [])
         
         # Adjust course load based on preferences and constraints
         if preferred_pace == 'Part-time' or work_hours > 20:
@@ -222,7 +224,8 @@ class DegreeOptimizer:
             for course in remaining_courses:
                 prereqs = course.get('prerequisites', [])
                 prereqs_met = all(
-                    prereq['course_id'] in completed_in_plan 
+                    prereq.get('course_id') in completed_in_plan or
+                    prereq.get('course_id') in completed_history
                     for prereq in prereqs
                 )
                 if prereqs_met:
@@ -255,6 +258,7 @@ class DegreeOptimizer:
                 courses_added += 1
                 
                 completed_in_plan.add(course['course_id'])
+                completed_history.add(course['course_id'])
                 remaining_courses.remove(course)
             
             # Calculate term risk level
