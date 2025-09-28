@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ student.name }} - Recommendations</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/styles.css') }}" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('index') }}">
+                <i class="fas fa-graduation-cap me-2"></i>UMBC Degree Planner
+            </a>
+            <span class="navbar-text">
+                <i class="fas fa-robot me-1"></i>AI-Powered Academic Advisor
+            </span>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- Breadcrumb -->
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('students') }}">Students</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('student_overview', student_id=student.id) }}">{{ student.name }}</a></li>
+                <li class="breadcrumb-item active">Recommendations</li>
+            </ol>
+        </nav>
+
+        <div class="row">
+            <!-- Student Info Sidebar -->
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-user me-2"></i>{{ student.name }}</h5>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>Degree:</strong><br>{{ student.degree_name }}</p>
+                        <p><strong>Learning Style:</strong><br>{{ student.learning_style }}</p>
+                    </div>
+                </div>
+
+                <!-- Navigation -->
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h6><i class="fas fa-bars me-2"></i>Navigation</h6>
+                    </div>
+                    <div class="list-group list-group-flush">
+                        <a href="{{ url_for('student_overview', student_id=student.id) }}" 
+                           class="list-group-item list-group-item-action">
+                            <i class="fas fa-chart-pie me-2"></i>Overview
+                        </a>
+                        <a href="{{ url_for('student_pathway', student_id=student.id) }}" 
+                           class="list-group-item list-group-item-action">
+                            <i class="fas fa-route me-2"></i>Optimal Path
+                        </a>
+                        <a href="{{ url_for('student_recommendations', student_id=student.id) }}" 
+                           class="list-group-item list-group-item-action active">
+                            <i class="fas fa-lightbulb me-2"></i>Recommendations
+                        </a>
+                        <a href="{{ url_for('student_chat', student_id=student.id) }}" 
+                           class="list-group-item list-group-item-action">
+                            <i class="fas fa-comments me-2"></i>AI Assistant
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="col-md-9">
+                <h2><i class="fas fa-lightbulb me-2"></i>Recommendations for {{ student.name }}</h2>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5><i class="fas fa-star me-2"></i>Next Term Courses</h5>
+                            </div>
+                            <div class="card-body">
+                                {% if recommendations %}
+                                    {% for rec in recommendations %}
+                                    <div class="recommendation-item">
+                                        <h6>{{ rec.course_name }}</h6>
+                                        <p>{{ rec.description }}</p>
+                                        <div class="recommendation-score">{{ rec.score }}</div>
+                                    </div>
+                                    {% endfor %}
+                                {% else %}
+                                <div class="text-center text-muted">
+                                    <i class="fas fa-lightbulb fa-3x mb-3"></i>
+                                    <h5>Generate Recommendations</h5>
+                                    <p>AI-powered course recommendations will appear here based on your academic progress and learning style.</p>
+                                    <button onclick="generateRecommendations()" class="btn btn-primary">
+                                        <i class="fas fa-magic me-1"></i>Generate Recommendations
+                                    </button>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5><i class="fas fa-users me-2"></i>Peer Insights</h5>
+                            </div>
+                            <div class="card-body">
+                                {% if similar_students %}
+                                    {% for peer in similar_students %}
+                                    <div class="peer-insight-item mb-3">
+                                        <h6>{{ peer.name }}</h6>
+                                        <p><small>{{ peer.insight }}</small></p>
+                                    </div>
+                                    {% endfor %}
+                                {% else %}
+                                <div class="text-center text-muted">
+                                    <i class="fas fa-users fa-3x mb-3"></i>
+                                    <h5>Similar Student Insights</h5>
+                                    <p>Learn from students with similar academic profiles and goals.</p>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script>
+        async function generateRecommendations() {
+            try {
+                const response = await fetch(`/api/course-recommendations/{{ student.id }}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Reload page to show recommendations
+                    window.location.reload();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>

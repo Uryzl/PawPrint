@@ -148,6 +148,39 @@ class Neo4jClient:
             }
         ]
 
+    def search_students(self, search_term: str, limit: int = 50) -> List[Dict]:
+        """Search students by name or ID"""
+        if not self.driver:
+            logger.warning("Neo4j not connected, returning filtered demo data")
+            demo_students = self._get_demo_students()
+            search_lower = search_term.lower()
+            return [s for s in demo_students 
+                   if search_lower in s['name'].lower() or search_lower in s['id'].lower()]
+            
+        query = """
+        MATCH (s:Student)
+        OPTIONAL MATCH (s)-[:PURSUING]->(d:Degree)
+        WHERE toLower(s.name) CONTAINS toLower($search_term) 
+           OR toLower(s.id) CONTAINS toLower($search_term)
+        RETURN s.id as id, s.name as name, s.learningStyle as learning_style,
+               d.name as degree_name, s.expectedGraduation as expected_graduation
+        ORDER BY s.name
+        LIMIT $limit
+        """
+        
+        try:
+            with self.driver.session() as session:
+                result = session.run(query, search_term=search_term, limit=limit)
+                students = [dict(record) for record in result]
+                return [self._convert_neo4j_types(student) for student in students]
+        except Exception as e:
+            logger.error(f"Error searching students: {e}")
+            # Fallback to demo data search
+            demo_students = self._get_demo_students()
+            search_lower = search_term.lower()
+            return [s for s in demo_students 
+                   if search_lower in s['name'].lower() or search_lower in s['id'].lower()]
+
     def _get_demo_student_details(self, student_id: str) -> Optional[Dict]:
         """Return detailed demo student information."""
         demo_details = {
