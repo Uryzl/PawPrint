@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 24" width="100" height="24" fill="currentColor">
+  <!-- Trail of pawprints getting smaller -->
+  
+  <!-- First paw (largest) -->
+  <g transform="translate(8, 12) scale(0.8)">
+    <ellipse cx="0" cy="3" rx="3.5" ry="4.5" fill="currentColor" opacity="0.9"/>
+    <ellipse cx="-2.5" cy="-2" rx="1.2" ry="1.8" fill="currentColor" opacity="0.9"/>
+    <ellipse cx="0" cy="-3" rx="1.2" ry="1.8" fill="currentColor" opacity="0.9"/>
+    <ellipse cx="2.5" cy="-2" rx="1.2" ry="1.8" fill="currentColor" opacity="0.9"/>
+    <ellipse cx="3.5" cy="1.5" rx="1" ry="1.5" fill="currentColor" opacity="0.9"/>
+  </g>
+  
+  <!-- Second paw (medium) -->
+  <g transform="translate(28, 12) scale(0.6)">
+    <ellipse cx="0" cy="3" rx="3.5" ry="4.5" fill="currentColor" opacity="0.7"/>
+    <ellipse cx="-2.5" cy="-2" rx="1.2" ry="1.8" fill="currentColor" opacity="0.7"/>
+    <ellipse cx="0" cy="-3" rx="1.2" ry="1.8" fill="currentColor" opacity="0.7"/>
+    <ellipse cx="2.5" cy="-2" rx="1.2" ry="1.8" fill="currentColor" opacity="0.7"/>
+    <ellipse cx="3.5" cy="1.5" rx="1" ry="1.5" fill="currentColor" opacity="0.7"/>
+  </g>
+  
+  <!-- Third paw (small) -->
+  <g transform="translate(44, 12) scale(0.4)">
+    <ellipse cx="0" cy="3" rx="3.5" ry="4.5" fill="currentColor" opacity="0.5"/>
+    <ellipse cx="-2.5" cy="-2" rx="1.2" ry="1.8" fill="currentColor" opacity="0.5"/>
+    <ellipse cx="0" cy="-3" rx="1.2" ry="1.8" fill="currentColor" opacity="0.5"/>
+    <ellipse cx="2.5" cy="-2" rx="1.2" ry="1.8" fill="currentColor" opacity="0.5"/>
+    <ellipse cx="3.5" cy="1.5" rx="1" ry="1.5" fill="currentColor" opacity="0.5"/>
+  </g>
+  
+  <!-- Fourth paw (smallest) -->
+  <g transform="translate(56, 12) scale(0.2)">
+    <ellipse cx="0" cy="3" rx="3.5" ry="4.5" fill="currentColor" opacity="0.3"/>
+    <ellipse cx="-2.5" cy="-2" rx="1.2" ry="1.8" fill="currentColor" opacity="0.3"/>
+    <ellipse cx="0" cy="-3" rx="1.2" ry="1.8" fill="currentColor" opacity="0.3"/>
+    <ellipse cx="2.5" cy="-2" rx="1.2" ry="1.8" fill="currentColor" opacity="0.3"/>
+    <ellipse cx="3.5" cy="1.5" rx="1" ry="1.5" fill="currentColor" opacity="0.3"/>
+  </g>
+</svg>

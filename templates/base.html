@@ -3,7 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}UMBC Degree Planner - AI-Powered Academic Advisor{% endblock %}</title>
+    <title>{% block title %}Paw Print - AI-Powered Degree Planner{% endblock %}</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon-64.svg') }}">
+    <link rel="alternate icon" href="{{ url_for('static', filename='favicon-64.svg') }}">
+    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon-64.svg') }}">
+    
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/styles.css') }}" rel="stylesheet">
@@ -13,7 +19,8 @@
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container">
             <a class="navbar-brand pawprint-brand" href="{{ url_for('index') }}">
-                <i class="fas fa-graduation-cap me-2"></i>UMBC Degree Planner
+                <img src="{{ url_for('static', filename='pawprint-yellow.svg') }}" alt="PawPrint" class="pawprint-icon me-2">
+                PawPrint
             </a>
             
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
