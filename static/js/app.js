@@ -14,6 +14,12 @@ class DegreePlanner {
     }
 
     initializeEventListeners() {
+        // Navbar brand click - return to home
+        document.querySelector('.navbar-brand').addEventListener('click', (e) => {
+            e.preventDefault();
+            this.returnToHome();
+        });
+
         // Student search functionality
         document.getElementById('studentSearch').addEventListener('input', (e) => {
             this.filterStudents(e.target.value);
@@ -166,6 +172,46 @@ class DegreePlanner {
         document.getElementById('planningInterface').style.display = 'block';
     }
 
+    returnToHome() {
+        // Hide planning interface and show welcome message
+        document.getElementById('planningInterface').style.display = 'none';
+        document.getElementById('welcomeMessage').style.display = 'block';
+        
+        // Hide student info panel
+        document.getElementById('studentInfoPanel').style.display = 'none';
+        
+        // Clear selected student
+        this.selectedStudent = null;
+        this.optimizedPath = null;
+        
+        // Remove active class from all student items
+        document.querySelectorAll('.student-item').forEach(item => {
+            item.classList.remove('active');
+        });
+        
+        // Clear search input
+        document.getElementById('studentSearch').value = '';
+        
+        // Show all students again (in case search was applied)
+        document.querySelectorAll('.student-item').forEach(item => {
+            item.style.display = 'block';
+        });
+        
+        // Reset tab to overview
+        const overviewTab = document.getElementById('overview-tab');
+        if (overviewTab) {
+            overviewTab.click();
+        }
+        
+        // Destroy any existing charts to prevent memory leaks
+        Object.values(this.charts).forEach(chart => {
+            if (chart && typeof chart.destroy === 'function') {
+                chart.destroy();
+            }
+        });
+        this.charts = {};
+    }
+
     loadOverviewData(studentData) {
         this.renderDegreeProgress(studentData);
         this.renderTimelineOverview();
@@ -195,7 +241,7 @@ class DegreePlanner {
                 </div>
                 <div class="col-4">
                     <div class="stat-item">
-                        <h4 class="text-info">${enrolled}</h4>
+                        <h4 style="color: #0d6efd;">${enrolled}</h4>
                         <small>Enrolled</small>
                     </div>
                 </div>
@@ -235,7 +281,7 @@ class DegreePlanner {
             data: {
                 datasets: [{
                     data: [percentage, 100 - percentage],
-                    backgroundColor: ['#28a745', '#e9ecef'],
+                    backgroundColor: ['#fdb515', '#e9ecef'],
                     borderWidth: 0
                 }]
             },
@@ -256,7 +302,7 @@ class DegreePlanner {
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
                     ctx.font = 'bold 24px Arial';
-                    ctx.fillStyle = '#28a745';
+                    ctx.fillStyle = '#fdb515';
                     ctx.fillText(`${percentage.toFixed(0)}%`, centerX, centerY);
                     ctx.restore();
                 }
