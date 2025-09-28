@@ -8,9 +8,11 @@ from flask import Flask, render_template, request, jsonify, session
 from flask_cors import CORS
 import os
 import logging
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 import secrets
 import json
+import time
+from functools import wraps
 
 # Import our custom modules
 from neo4j_client import Neo4jClient
@@ -39,6 +41,30 @@ CORS(app)
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Simple in-memory cache for student data
+student_cache = {}
+CACHE_TTL = 300  # 5 minutes cache
+
+def get_cached_student_data(student_id: str):
+    """Get student data from cache or database"""
+    current_time = time.time()
+    
+    # Check if data is in cache and not expired
+    if student_id in student_cache:
+        cached_data, timestamp = student_cache[student_id]
+        if current_time - timestamp < CACHE_TTL:
+            logger.info(f"Using cached data for student {student_id}")
+            return cached_data
+    
+    # Fetch fresh data
+    logger.info(f"Fetching fresh data for student {student_id}")
+    data = neo4j_client.get_student_complete_data(student_id)
+    
+    if data:
+        student_cache[student_id] = (data, current_time)
+    
+    return data
 
 # Initialize clients with error handling
 try:
@@ -81,27 +107,31 @@ def students():
         logger.error(f"Error loading students page: {e}")
         return render_template('students.html', students=[], search='', error=str(e))
 
+@app.route('/faculty')
+def faculty():
+    """Faculty directory and compatibility page"""
+    return render_template('faculty.html')
+
 @app.route('/student/<student_id>')
 def student_overview(student_id):
     """Student overview page - degree progress, timeline, risk factors"""
     try:
         if not neo4j_client:
             return render_template('error.html', error="Neo4j not connected"), 500
-            
-        student = neo4j_client.get_student_details(student_id)
-        if not student:
+        
+        # Get all data in one optimized call with caching
+        data = get_cached_student_data(student_id)
+        if not data:
             return render_template('error.html', error="Student not found"), 404
         
-        # Get course history and degree progress
-        completed_courses = neo4j_client.get_student_completed_courses(student_id)
-        enrolled_courses = neo4j_client.get_student_enrolled_courses(student_id)
-        degree_info = neo4j_client.get_student_degree(student_id)
-        
         return render_template('student_overview.html', 
-                             student=student,
-                             completed_courses=completed_courses,
-                             enrolled_courses=enrolled_courses,
-                             degree_info=degree_info)
+                             student=data['student'],
+                             degree=data.get('degree'),
+                             completed_courses=data['completed_courses'],
+                             enrolled_courses=data['enrolled_courses'],
+                             degree_info=data['degree_info'],
+                             similar_students=data.get('similar_students', []),
+                             requirement_groups=data.get('requirement_groups', []))
     except Exception as e:
         logger.error(f"Error loading student overview for {student_id}: {e}")
         return render_template('error.html', error=str(e)), 500
@@ -112,9 +142,10 @@ def student_pathway(student_id):
     try:
         if not neo4j_client:
             return render_template('error.html', error="Neo4j not connected"), 500
-            
-        student = neo4j_client.get_student_details(student_id)
-        if not student:
+        
+        # Get cached student data (much faster)
+        data = get_cached_student_data(student_id)
+        if not data:
             return render_template('error.html', error="Student not found"), 404
         
         # Get existing optimized path if available
@@ -123,13 +154,13 @@ def student_pathway(student_id):
             try:
                 optimized_path = degree_optimizer.find_optimal_path(student_id)
             except Exception as e:
-                logger.warning(f"Could not generate optimal path: {e}")
+                logger.warning("Could not generate optimal path: %s", e)
         
         return render_template('student_pathway.html', 
-                             student=student,
+                             student=data['student'],
                              optimized_path=optimized_path)
     except Exception as e:
-        logger.error(f"Error loading student pathway for {student_id}: {e}")
+        logger.error("Error loading student pathway for %s: %s", student_id, e)
         return render_template('error.html', error=str(e)), 500
 
 @app.route('/student/<student_id>/recommendations')
@@ -138,9 +169,10 @@ def student_recommendations(student_id):
     try:
         if not neo4j_client:
             return render_template('error.html', error="Neo4j not connected"), 500
-            
-        student = neo4j_client.get_student_details(student_id)
-        if not student:
+        
+        # Get cached student data (much faster)
+        data = get_cached_student_data(student_id)
+        if not data:
             return render_template('error.html', error="Student not found"), 404
         
         # Get recommendations
@@ -150,19 +182,19 @@ def student_recommendations(student_id):
             try:
                 recommendations = degree_optimizer.get_course_recommendations(student_id)
             except Exception as e:
-                logger.warning(f"Could not get recommendations: {e}")
+                logger.warning("Could not get recommendations: %s", e)
         
         try:
             similar_students = neo4j_client.get_similar_students(student_id)
         except Exception as e:
-            logger.warning(f"Could not get similar students: {e}")
+            logger.warning("Could not get similar students: %s", e)
         
         return render_template('student_recommendations.html', 
-                             student=student,
+                             student=data['student'],
                              recommendations=recommendations,
                              similar_students=similar_students)
     except Exception as e:
-        logger.error(f"Error loading student recommendations for {student_id}: {e}")
+        logger.error("Error loading student recommendations for %s: %s", student_id, e)
         return render_template('error.html', error=str(e)), 500
 
 @app.route('/student/<student_id>/chat')
@@ -171,14 +203,15 @@ def student_chat(student_id):
     try:
         if not neo4j_client:
             return render_template('error.html', error="Neo4j not connected"), 500
-            
-        student = neo4j_client.get_student_details(student_id)
-        if not student:
+        
+        # Get cached student data (much faster)
+        data = get_cached_student_data(student_id)
+        if not data:
             return render_template('error.html', error="Student not found"), 404
         
-        return render_template('student_chat.html', student=student)
+        return render_template('student_chat.html', student=data['student'])
     except Exception as e:
-        logger.error(f"Error loading student chat for {student_id}: {e}")
+        logger.error("Error loading student chat for %s: %s", student_id, e)
         return render_template('error.html', error=str(e)), 500
 
 @app.route('/api/students')
@@ -300,6 +333,213 @@ def health_check():
             "error": str(e),
             "timestamp": datetime.now().isoformat()
         }), 500
+
+@app.route('/debug/neo4j')
+def debug_neo4j():
+    """Debug endpoint to test Neo4j connection"""
+    try:
+        # Check environment variables
+        env_vars = {
+            'NEO4J_URI': os.getenv('NEO4J_URI'),
+            'NEO4J_USERNAME': os.getenv('NEO4J_USERNAME'),
+            'NEO4J_PASSWORD': '***' if os.getenv('NEO4J_PASSWORD') else None
+        }
+        
+        # Test connection
+        is_connected = neo4j_client.test_connection()
+        has_driver = neo4j_client.driver is not None
+        
+        # Try to get students to see if we get demo data
+        students = neo4j_client.get_all_students(limit=5)
+        using_demo = len(students) > 0 and students[0].get('name') == 'Alice Johnson'
+        
+        return jsonify({
+            "neo4j_status": {
+                "has_driver": has_driver,
+                "connection_test": is_connected,
+                "using_demo_data": using_demo
+            },
+            "environment_variables": env_vars,
+            "sample_students": students[:2],  # First 2 students
+            "student_count": len(students)
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "error": str(e),
+            "neo4j_status": "failed"
+        }), 500
+
+@app.route('/api/cache/clear')
+def clear_cache():
+    """Clear the student data cache"""
+    global student_cache
+    student_cache.clear()
+    logger.info("Student cache cleared")
+    return jsonify({
+        "success": True,
+        "message": "Cache cleared"
+    })
+
+@app.route('/api/cache/status')
+def cache_status():
+    """Get cache status information"""
+    current_time = time.time()
+    cache_info = {}
+    
+    for student_id, (data, timestamp) in student_cache.items():
+        age = current_time - timestamp
+        cache_info[student_id] = {
+            "age_seconds": round(age, 1),
+            "expires_in": round(CACHE_TTL - age, 1),
+            "is_valid": age < CACHE_TTL
+        }
+    
+    return jsonify({
+        "cache_entries": len(student_cache),
+        "cache_ttl": CACHE_TTL,
+        "entries": cache_info
+    })
+
+@app.route('/api/setup/sample-data', methods=['POST'])
+def create_sample_data():
+    """Create sample data in Neo4j database"""
+    try:
+        if not neo4j_client:
+            return jsonify({
+                "success": False,
+                "error": "Neo4j not connected"
+            }), 500
+        
+        success = neo4j_client.create_sample_data()
+        
+        # Clear cache after creating new data
+        global student_cache
+        student_cache.clear()
+        
+        return jsonify({
+            "success": success,
+            "message": "Sample data created successfully" if success else "Failed to create sample data"
+        })
+        
+    except Exception as e:
+        logger.error("Error creating sample data: %s", e)
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route('/debug/student/<student_id>/data')
+def debug_student_data(student_id):
+    """Debug endpoint to see raw student data"""
+    try:
+        if not neo4j_client:
+            return jsonify({"error": "Neo4j not connected"}), 500
+        
+        data = get_cached_student_data(student_id)
+        if not data:
+            return jsonify({"error": "Student not found"}), 404
+        
+        return jsonify({
+            "student": data['student'],
+            "degree": data.get('degree'),
+            "degree_info": data['degree_info'],
+            "completed_courses_count": len(data['completed_courses']),
+            "enrolled_courses_count": len(data['enrolled_courses']),
+            "similar_students_count": len(data.get('similar_students', [])),
+            "requirement_groups_count": len(data.get('requirement_groups', [])),
+            "completed_courses_sample": data['completed_courses'][:2],  # First 2 for inspection
+            "enrolled_courses_sample": data['enrolled_courses'][:2],
+            "similar_students": data.get('similar_students', []),
+            "requirement_groups": data.get('requirement_groups', [])
+        })
+    
+    except Exception as e:
+        logger.error("Error in debug endpoint: %s", e)
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/degree/<degree_id>/requirements')
+def get_degree_requirements(degree_id):
+    """API endpoint to get degree requirements"""
+    try:
+        if not neo4j_client:
+            return jsonify({"error": "Neo4j not connected"}), 500
+        
+        requirements = neo4j_client.get_degree_requirements(degree_id)
+        return jsonify(requirements) if requirements else jsonify({"error": "Degree not found"}), 404
+    except Exception as e:
+        logger.error(f"Error fetching degree requirements: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/student/<student_id>/similar')
+def get_student_similar(student_id):
+    """API endpoint to get similar students"""
+    try:
+        if not neo4j_client:
+            return jsonify({"error": "Neo4j not connected"}), 500
+        
+        similar_students = neo4j_client.get_similar_students(student_id)
+        return jsonify(similar_students)
+    except Exception as e:
+        logger.error(f"Error fetching similar students: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/faculty/<faculty_id>')
+def get_faculty_details(faculty_id):
+    """API endpoint to get faculty information and teaching assignments"""
+    try:
+        if not neo4j_client:
+            return jsonify({"error": "Neo4j not connected"}), 500
+        
+        faculty_info = neo4j_client.get_faculty_info(faculty_id)
+        return jsonify(faculty_info) if faculty_info else jsonify({"error": "Faculty not found"}), 404
+    except Exception as e:
+        logger.error(f"Error fetching faculty details: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/course/<course_id>/schedule')
+def get_course_schedule(course_id):
+    """API endpoint to get course scheduling information"""
+    try:
+        if not neo4j_client:
+            return jsonify({"error": "Neo4j not connected"}), 500
+        
+        schedule_info = neo4j_client.get_course_schedule_info(course_id)
+        return jsonify(schedule_info) if schedule_info else jsonify({"error": "Course not found"}), 404
+    except Exception as e:
+        logger.error(f"Error fetching course schedule: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/compatibility/<faculty_id>/<learning_style>')
+def get_faculty_compatibility(faculty_id, learning_style):
+    """API endpoint to get faculty-student compatibility analysis"""
+    try:
+        if not neo4j_client:
+            return jsonify({"error": "Neo4j not connected"}), 500
+        
+        compatibility = neo4j_client.get_faculty_student_compatibility(faculty_id, learning_style)
+        return jsonify(compatibility)
+    except Exception as e:
+        logger.error(f"Error calculating compatibility: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/faculty/all')
+def get_all_faculty():
+    """API endpoint to get all faculty members"""
+    try:
+        if not neo4j_client:
+            return jsonify({"error": "Neo4j not connected"}), 500
+        
+        faculty_list = neo4j_client.get_all_faculty()
+        return jsonify(faculty_list)
+    except Exception as e:
+        logger.error(f"Error fetching faculty list: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/test/new-features')
+def test_new_features():
+    """Test page for new degree and relationship features"""
+    return render_template('test_features.html')
 
 if __name__ == '__main__':
     # Check for environment variables

@@ -1,0 +1,452 @@
+{% extends "base.html" %}
+
+{% block title %}Course Schedule - UMBC Degree Planner{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+        <li class="breadcrumb-item active">Course Schedule</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-calendar-alt me-2"></i>Academic Course Schedule</h5>
+            </div>
+            <div class="card-body">
+                <!-- Term Selection -->
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <label for="termSelect" class="form-label">Select Term:</label>
+                        <select class="form-select" id="termSelect" onchange="loadTermSchedule()">
+                            <option value="T2024F">Fall 2024</option>
+                            <option value="T2025S">Spring 2025</option>
+                            <option value="T2025U">Summer 2025</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="departmentSelect" class="form-label">Filter by Department:</label>
+                        <select class="form-select" id="departmentSelect" onchange="filterByDepartment()">
+                            <option value="">All Departments</option>
+                            <option value="Computer Science">Computer Science</option>
+                            <option value="Biology">Biology</option>
+                            <option value="Mathematics">Mathematics</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Schedule Grid -->
+                <div id="scheduleContent">
+                    <div class="row">
+                        <!-- Monday -->
+                        <div class="col-md-2">
+                            <h6 class="text-center fw-bold border-bottom pb-2">Monday</h6>
+                            <div id="monday-schedule">
+                                <div class="course-slot mb-2" data-time="9:00" data-duration="75">
+                                    <div class="card bg-light">
+                                        <div class="card-body p-2">
+                                            <small class="text-primary fw-bold">9:00 - 10:15 AM</small>
+                                            <div class="fw-bold">CMSC 201</div>
+                                            <small class="text-muted">Computer Science I</small>
+                                            <div class="mt-1">
+                                                <small class="badge bg-info">Prof. Brown</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="course-slot mb-2" data-time="11:30" data-duration="75">
+                                    <div class="card bg-light">
+                                        <div class="card-body p-2">
+                                            <small class="text-primary fw-bold">11:30 - 12:45 PM</small>
+                                            <div class="fw-bold">CMSC 331</div>
+                                            <small class="text-muted">Principles of Programming</small>
+                                            <div class="mt-1">
+                                                <small class="badge bg-info">Dr. Martinez</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Tuesday -->
+                        <div class="col-md-2">
+                            <h6 class="text-center fw-bold border-bottom pb-2">Tuesday</h6>
+                            <div id="tuesday-schedule">
+                                <div class="course-slot mb-2" data-time="14:00" data-duration="75">
+                                    <div class="card bg-light">
+                                        <div class="card-body p-2">
+                                            <small class="text-primary fw-bold">2:00 - 3:15 PM</small>
+                                            <div class="fw-bold">BIOL 141</div>
+                                            <small class="text-muted">Foundations of Biology</small>
+                                            <div class="mt-1">
+                                                <small class="badge bg-success">Prof. Rodriguez</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Wednesday -->
+                        <div class="col-md-2">
+                            <h6 class="text-center fw-bold border-bottom pb-2">Wednesday</h6>
+                            <div id="wednesday-schedule">
+                                <div class="course-slot mb-2" data-time="9:00" data-duration="75">
+                                    <div class="card bg-light">
+                                        <div class="card-body p-2">
+                                            <small class="text-primary fw-bold">9:00 - 10:15 AM</small>
+                                            <div class="fw-bold">CMSC 201</div>
+                                            <small class="text-muted">Computer Science I</small>
+                                            <div class="mt-1">
+                                                <small class="badge bg-info">Prof. Brown</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="course-slot mb-2" data-time="11:30" data-duration="75">
+                                    <div class="card bg-light">
+                                        <div class="card-body p-2">
+                                            <small class="text-primary fw-bold">11:30 - 12:45 PM</small>
+                                            <div class="fw-bold">CMSC 331</div>
+                                            <small class="text-muted">Principles of Programming</small>
+                                            <div class="mt-1">
+                                                <small class="badge bg-info">Dr. Martinez</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Thursday -->
+                        <div class="col-md-2">
+                            <h6 class="text-center fw-bold border-bottom pb-2">Thursday</h6>
+                            <div id="thursday-schedule">
+                                <div class="course-slot mb-2" data-time="14:00" data-duration="75">
+                                    <div class="card bg-light">
+                                        <div class="card-body p-2">
+                                            <small class="text-primary fw-bold">2:00 - 3:15 PM</small>
+                                            <div class="fw-bold">BIOL 141</div>
+                                            <small class="text-muted">Foundations of Biology</small>
+                                            <div class="mt-1">
+                                                <small class="badge bg-success">Prof. Rodriguez</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Friday -->
+                        <div class="col-md-2">
+                            <h6 class="text-center fw-bold border-bottom pb-2">Friday</h6>
+                            <div id="friday-schedule">
+                                <div class="course-slot mb-2" data-time="9:00" data-duration="75">
+                                    <div class="card bg-light">
+                                        <div class="card-body p-2">
+                                            <small class="text-primary fw-bold">9:00 - 10:15 AM</small>
+                                            <div class="fw-bold">CMSC 201</div>
+                                            <small class="text-muted">Computer Science I</small>
+                                            <div class="mt-1">
+                                                <small class="badge bg-info">Prof. Brown</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Saturday -->
+                        <div class="col-md-2">
+                            <h6 class="text-center fw-bold border-bottom pb-2">Saturday</h6>
+                            <div id="saturday-schedule">
+                                <div class="text-center text-muted py-4">
+                                    <i class="fas fa-bed fa-2x mb-2"></i>
+                                    <div>No Classes</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Course Legend -->
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <h6><i class="fas fa-info-circle me-2"></i>Course Information</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6>Department Colors:</h6>
+                                <div class="mb-2">
+                                    <span class="badge bg-info me-2">Computer Science</span>
+                                    <span class="badge bg-success me-2">Biology</span>
+                                    <span class="badge bg-warning me-2">Mathematics</span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>Quick Actions:</h6>
+                                <button class="btn btn-sm btn-outline-primary me-2" onclick="exportSchedule()">
+                                    <i class="fas fa-download me-1"></i>Export Schedule
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="printSchedule()">
+                                    <i class="fas fa-print me-1"></i>Print Schedule
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Term Statistics -->
+                <div class="row mt-4" id="termStatistics">
+                    <div class="col-md-4">
+                        <div class="card bg-primary text-white">
+                            <div class="card-body text-center">
+                                <h3 class="card-title" id="totalCourses">0</h3>
+                                <p class="card-text">Total Courses</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-success text-white">
+                            <div class="card-body text-center">
+                                <h3 class="card-title" id="totalCredits">0</h3>
+                                <p class="card-text">Credit Hours</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-info text-white">
+                            <div class="card-body text-center">
+                                <h3 class="card-title" id="facultyCount">0</h3>
+                                <p class="card-text">Faculty Members</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Course Detail Modal -->
+<div class="modal fade" id="courseDetailModal" tabindex="-1" aria-labelledby="courseDetailModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="courseDetailModalLabel">
+                    <i class="fas fa-book me-2"></i>Course Details
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="courseDetailBody">
+                <!-- Course detail content will be loaded here -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Make course slots clickable
+    document.querySelectorAll('.course-slot').forEach(slot => {
+        slot.style.cursor = 'pointer';
+        slot.addEventListener('click', function() {
+            const courseCode = this.querySelector('.fw-bold').textContent;
+            showCourseDetailFromSchedule(courseCode);
+        });
+    });
+    
+    // Load initial schedule
+    loadTermSchedule();
+    
+    // Load term schedule
+    window.loadTermSchedule = function() {
+        const selectedTerm = document.getElementById('termSelect').value;
+        console.log('Loading schedule for term:', selectedTerm);
+        
+        const scheduleContent = document.getElementById('scheduleContent');
+        scheduleContent.innerHTML = `
+            <div class="text-center py-5">
+                <div class="spinner-border" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <div class="mt-2">Loading ${selectedTerm} schedule...</div>
+            </div>
+        `;
+        
+        fetch(`/api/schedule/${selectedTerm}`)
+        .then(response => response.json())
+        .then(data => {
+            displayTermSchedule(data);
+            updateStatistics(data.statistics);
+        })
+        .catch(error => {
+            console.error('Error loading schedule:', error);
+            scheduleContent.innerHTML = `
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Unable to load schedule for ${selectedTerm}. Please try again later.
+                </div>
+            `;
+        });
+    };
+    
+    function displayTermSchedule(scheduleData) {
+        const courses = scheduleData.courses;
+        const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        
+        // Department colors
+        const departmentColors = {
+            'Computer Science': 'info',
+            'Biology': 'success',
+            'Mathematics': 'warning',
+            'Other': 'secondary'
+        };
+        
+        let html = '<div class="row">';
+        
+        daysOfWeek.forEach(day => {
+            html += `
+                <div class="col-md-2">
+                    <h6 class="text-center fw-bold border-bottom pb-2">${day}</h6>
+                    <div id="${day.toLowerCase()}-schedule">
+            `;
+            
+            // Filter courses for this day (simplified - in real app would use actual schedule times)
+            const dayCourses = courses.filter((course, index) => {
+                // Simple distribution logic for demo
+                if (day === 'Monday' || day === 'Wednesday' || day === 'Friday') {
+                    return course.course_id.includes('CMSC') || course.course_id.includes('MATH');
+                } else if (day === 'Tuesday' || day === 'Thursday') {
+                    return course.course_id.includes('BIOL') || course.course_id.includes('CMSC');
+                } else {
+                    return false; // Saturday - no classes
+                }
+            });
+            
+            if (dayCourses.length === 0 && day === 'Saturday') {
+                html += `
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-bed fa-2x mb-2"></i>
+                        <div>No Classes</div>
+                    </div>
+                `;
+            } else {
+                dayCourses.slice(0, 3).forEach((course, index) => {
+                    const times = ['9:00-10:15 AM', '11:30-12:45 PM', '2:00-3:15 PM'];
+                    const time = times[index] || '10:00-11:15 AM';
+                    const colorClass = departmentColors[course.department] || 'secondary';
+                    const instructor = course.instructors.length > 0 ? course.instructors[0] : null;
+                    
+                    html += `
+                        <div class="course-slot mb-2" data-course-id="${course.course_id}" style="cursor: pointer;" onclick="showCourseDetailFromschedule('${course.course_id}')">
+                            <div class="card bg-light">
+                                <div class="card-body p-2">
+                                    <small class="text-primary fw-bold">${time}</small>
+                                    <div class="fw-bold">${course.course_id}</div>
+                                    <small class="text-muted">${course.course_name}</small>
+                                    <div class="mt-1">
+                                        <small class="badge bg-${colorClass}">${instructor ? instructor.faculty_name : 'TBA'}</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            
+            html += '</div></div>';
+        });
+        
+        html += '</div>';
+        document.getElementById('scheduleContent').innerHTML = html;
+    }
+    
+    function updateStatistics(stats) {
+        // Update statistics cards
+        document.getElementById('totalCourses').textContent = stats.total_courses;
+        document.getElementById('totalCredits').textContent = stats.total_credits;
+        document.getElementById('facultyCount').textContent = stats.faculty_count;
+    }
+    
+    // Filter by department
+    window.filterByDepartment = function() {
+        const selectedDept = document.getElementById('departmentSelect').value;
+        const courseSlots = document.querySelectorAll('.course-slot');
+        
+        courseSlots.forEach(slot => {
+            const badge = slot.querySelector('.badge');
+            if (!selectedDept || badge.textContent.includes(selectedDept) || 
+                (selectedDept === 'Computer Science' && badge.classList.contains('bg-info')) ||
+                (selectedDept === 'Biology' && badge.classList.contains('bg-success'))) {
+                slot.style.display = 'block';
+            } else {
+                slot.style.display = 'none';
+            }
+        });
+    };
+    
+    // Show course details from schedule
+    window.showCourseDetailFromschedule = function(courseCode) {
+        const modal = new bootstrap.Modal(document.getElementById('courseDetailModal'));
+        const modalBody = document.getElementById('courseDetailBody');
+        
+        modalBody.innerHTML = `
+            <div class="text-center">
+                <div class="spinner-border" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        `;
+        
+        modal.show();
+        
+        // Simulate API call for course details
+        setTimeout(() => {
+            modalBody.innerHTML = `
+                <div class="course-details">
+                    <h4>${courseCode}</h4>
+                    <p class="text-muted">Course details would be loaded from the API</p>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Schedule Information:</h6>
+                            <ul>
+                                <li>MWF 9:00-10:15 AM</li>
+                                <li>Room: Engineering 101</li>
+                                <li>Credits: 3</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Instructor:</h6>
+                            <p>Professor Brown<br>
+                            <small class="text-muted">Project-Based Teaching Style</small></p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }, 1000);
+    };
+    
+    // Export schedule
+    window.exportSchedule = function() {
+        alert('Schedule export functionality would be implemented here');
+    };
+    
+    // Print schedule
+    window.printSchedule = function() {
+        window.print();
+    };
+});
+</script>
+{% endblock %}

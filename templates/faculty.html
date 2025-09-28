@@ -1,0 +1,430 @@
+{% extends "base.html" %}
+
+{% block title %}Faculty - UMBC Degree Planner{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+        <li class="breadcrumb-item active">Faculty</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-chalkboard-teacher me-2"></i>Faculty Directory</h5>
+            </div>
+            <div class="card-body">
+                <div id="facultyDirectory">
+                    <div class="text-center py-4">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading faculty...</span>
+                        </div>
+                        <div class="mt-2">Loading faculty directory...</div>
+                    </div>
+                </div>
+                
+                <!-- Compatibility Checker -->
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <h6><i class="fas fa-user-check me-2"></i>Faculty Compatibility Checker</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <label for="learningStyleSelect" class="form-label">Your Learning Style:</label>
+                                <select class="form-select" id="learningStyleSelect">
+                                    <option value="Visual">Visual</option>
+                                    <option value="Auditory">Auditory</option>
+                                    <option value="Kinesthetic">Kinesthetic</option>
+                                    <option value="Reading-Writing">Reading-Writing</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="facultySelect" class="form-label">Select Faculty:</label>
+                                <select class="form-select" id="facultySelect">
+                                    <option value="">Loading faculty...</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <button class="btn btn-primary" onclick="checkCompatibility()">
+                                <i class="fas fa-chart-line me-1"></i>Check Compatibility
+                            </button>
+                        </div>
+                        <div id="compatibilityResult" class="mt-3" style="display: none;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Faculty Details Modal -->
+<div class="modal fade" id="facultyDetailsModal" tabindex="-1" aria-labelledby="facultyDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="facultyDetailsModalLabel">
+                    <i class="fas fa-chalkboard-teacher me-2"></i>Faculty Details
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="facultyDetailsBody">
+                <div class="text-center">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Course Details Modal -->
+<div class="modal fade" id="courseDetailsModal" tabindex="-1" aria-labelledby="courseDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="courseDetailsModalLabel">
+                    <i class="fas fa-book me-2"></i>Course Details
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="courseDetailsBody">
+                <div class="text-center">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Load faculty directory on page load
+    loadFacultyDirectory();
+    
+    function loadFacultyDirectory() {
+        fetch('/api/faculty/all')
+        .then(response => response.json())
+        .then(facultyList => {
+            displayFacultyDirectory(facultyList);
+        })
+        .catch(error => {
+            console.error('Error loading faculty:', error);
+            document.getElementById('facultyDirectory').innerHTML = `
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Unable to load faculty directory. Please try again later.
+                </div>
+            `;
+        });
+    }
+    
+    function displayFacultyDirectory(facultyList) {
+        // Group faculty by department
+        const departments = {};
+        facultyList.forEach(faculty => {
+            const dept = faculty.department || 'Other';
+            if (!departments[dept]) {
+                departments[dept] = [];
+            }
+            departments[dept].push(faculty);
+        });
+        
+        const departmentColors = {
+            'Computer Science': 'primary',
+            'Biology': 'success',
+            'Mathematics': 'warning',
+            'Other': 'secondary'
+        };
+        
+        let html = '<div class="row">';
+        
+        Object.keys(departments).forEach((dept, index) => {
+            const color = departmentColors[dept] || 'secondary';
+            const colClass = Object.keys(departments).length <= 2 ? 'col-md-6' : 'col-md-4';
+            
+            html += `
+                <div class="${colClass} mb-4">
+                    <h6 class="text-${color}">${dept} Department</h6>
+            `;
+            
+            departments[dept].forEach(faculty => {
+                const ratingBadgeClass = faculty.avg_rating >= 4.0 ? 'bg-success' : 
+                                       faculty.avg_rating >= 3.5 ? 'bg-info' : 'bg-warning';
+                
+                html += `
+                    <div class="faculty-card mb-3" onclick="showFacultyDetails('${faculty.id}')" style="cursor: pointer;">
+                        <div class="card">
+                            <div class="card-body">
+                                <h6 class="card-title">${faculty.name}</h6>
+                                <p class="text-muted mb-2">${faculty.department}</p>
+                                <div class="mb-2">
+                                    <span class="badge ${ratingBadgeClass}">${faculty.avg_rating}/5.0 Rating</span>
+                                    ${faculty.teaching_styles.map(style => 
+                                        `<span class="badge bg-info">${style}</span>`
+                                    ).join(' ')}
+                                </div>
+                                <small class="text-muted">
+                                    <i class="fas fa-book me-1"></i>Teaches: ${faculty.courses_taught.join(', ') || 'Various courses'}
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+        });
+        
+        html += '</div>';
+        document.getElementById('facultyDirectory').innerHTML = html;
+        
+        // Populate faculty select dropdown
+        const facultySelect = document.getElementById('facultySelect');
+        facultySelect.innerHTML = '<option value="">Select a faculty member...</option>';
+        facultyList.forEach(faculty => {
+            const option = document.createElement('option');
+            option.value = faculty.id;
+            option.textContent = faculty.name;
+            facultySelect.appendChild(option);
+        });
+    }
+    
+    // Faculty details functionality
+    window.showFacultyDetails = function(facultyId) {
+        const modal = new bootstrap.Modal(document.getElementById('facultyDetailsModal'));
+        const modalBody = document.getElementById('facultyDetailsBody');
+        
+        // Show loading spinner
+        modalBody.innerHTML = `
+            <div class="text-center">
+                <div class="spinner-border" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        `;
+        
+        modal.show();
+        
+        // Fetch faculty details
+        fetch(`/api/faculty/${facultyId}`)
+        .then(response => response.json())
+        .then(data => {
+            let content = `
+                <div class="faculty-details">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h4>${data.faculty.name}</h4>
+                            <p class="text-muted">${data.faculty.department} Department</p>
+                            <div class="mb-3">
+                                <span class="badge bg-success fs-6">${data.faculty.avgRating}/5.0 Rating</span>
+                            </div>
+                            <div class="mb-3">
+                                <h6>Teaching Styles:</h6>
+                                ${data.faculty.teachingStyle.map(style => 
+                                    `<span class="badge bg-info me-1">${style}</span>`
+                                ).join('')}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Teaching Schedule:</h6>
+                            <div class="teaching-assignments">
+            `;
+            
+            if (data.teaching_assignments && data.teaching_assignments.length > 0) {
+                data.teaching_assignments.forEach(assignment => {
+                    content += `
+                        <div class="card mb-2">
+                            <div class="card-body p-3">
+                                <h6 class="card-title mb-1">
+                                    <a href="#" class="text-decoration-none" onclick="showCourseDetails('${assignment.course.id}'); event.preventDefault();">
+                                        ${assignment.course.name || assignment.course.id}
+                                    </a>
+                                </h6>
+                                <small class="text-muted">
+                                    <i class="fas fa-calendar me-1"></i>
+                                    Terms: ${assignment.terms.join(', ')}
+                                </small>
+                            </div>
+                        </div>
+                    `;
+                });
+            } else {
+                content += '<p class="text-muted">No current teaching assignments</p>';
+            }
+            
+            content += `
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            modalBody.innerHTML = content;
+        })
+        .catch(error => {
+            console.error('Error fetching faculty details:', error);
+            modalBody.innerHTML = `
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Unable to load faculty details. Please try again later.
+                </div>
+            `;
+        });
+    };
+    
+    // Compatibility checker
+    window.checkCompatibility = function() {
+        const learningStyle = document.getElementById('learningStyleSelect').value;
+        const facultyId = document.getElementById('facultySelect').value;
+        const resultDiv = document.getElementById('compatibilityResult');
+        
+        resultDiv.style.display = 'block';
+        resultDiv.innerHTML = `
+            <div class="text-center">
+                <div class="spinner-border spinner-border-sm" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        `;
+        
+        fetch(`/api/compatibility/${facultyId}/${learningStyle}`)
+        .then(response => response.json())
+        .then(data => {
+            const score = data.compatibility_score;
+            const scoreClass = score >= 0.8 ? 'success' : score >= 0.6 ? 'warning' : 'danger';
+            const scoreText = score >= 0.8 ? 'Excellent Match!' : score >= 0.6 ? 'Good Compatibility' : 'Consider Alternatives';
+            
+            resultDiv.innerHTML = `
+                <div class="alert alert-${scoreClass}">
+                    <h6><i class="fas fa-chart-line me-2"></i>Compatibility Analysis</h6>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="text-center">
+                                <div class="display-6 fw-bold">${Math.round(score * 100)}%</div>
+                                <small>${scoreText}</small>
+                            </div>
+                        </div>
+                        <div class="col-md-8">
+                            <p class="mb-1"><strong>Teaching Styles:</strong> ${data.teaching_styles.join(', ')}</p>
+                            <p class="mb-1"><strong>Faculty Rating:</strong> ${data.avg_rating}/5.0</p>
+                            <p class="mb-0"><strong>Notes:</strong> ${data.notes}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        })
+        .catch(error => {
+            console.error('Error checking compatibility:', error);
+            resultDiv.innerHTML = `
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Unable to check compatibility. Please try again later.
+                </div>
+            `;
+        });
+    };
+    
+    // Course details functionality (similar to student overview page)
+    window.showCourseDetails = function(courseId) {
+        const modal = new bootstrap.Modal(document.getElementById('courseDetailsModal'));
+        const modalBody = document.getElementById('courseDetailsBody');
+        
+        // Show loading spinner
+        modalBody.innerHTML = `
+            <div class="text-center">
+                <div class="spinner-border" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        `;
+        
+        modal.show();
+        
+        // Fetch course schedule info
+        fetch(`/api/course/${courseId}/schedule`)
+        .then(response => response.json())
+        .then(data => {
+            let content = `
+                <div class="course-details">
+                    <h4>${data.course.name || data.course.id}</h4>
+                    <p class="text-muted">${data.course.department} Department</p>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Course Information:</h6>
+                            <ul class="list-unstyled">
+                                <li><strong>Course ID:</strong> ${data.course.id}</li>
+                                <li><strong>Department:</strong> ${data.course.department}</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Instructors:</h6>
+            `;
+            
+            if (data.instructors && data.instructors.length > 0) {
+                data.instructors.forEach(instructor => {
+                    const teachingStyles = instructor.faculty.teachingStyle || [];
+                    content += `
+                        <div class="mb-2">
+                            <strong>${instructor.faculty.name}</strong><br>
+                            <small class="text-muted">
+                                Teaching Style: ${teachingStyles.join(', ')}<br>
+                                Rating: ${instructor.faculty.avgRating}/5.0
+                            </small>
+                        </div>
+                    `;
+                });
+            } else {
+                content += '<p class="text-muted">No instructor information available</p>';
+            }
+            
+            content += `
+                        </div>
+                    </div>
+                    
+                    <div class="mt-3">
+                        <h6>Terms Offered:</h6>
+            `;
+            
+            if (data.offered_terms && data.offered_terms.length > 0) {
+                content += '<div class="d-flex flex-wrap gap-2">';
+                data.offered_terms.forEach(term => {
+                    content += `<span class="badge bg-primary">${term.name}</span>`;
+                });
+                content += '</div>';
+            } else {
+                content += '<p class="text-muted">No term information available</p>';
+            }
+            
+            content += `
+                    </div>
+                </div>
+            `;
+            
+            modalBody.innerHTML = content;
+        })
+        .catch(error => {
+            console.error('Error fetching course details:', error);
+            modalBody.innerHTML = `
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Unable to load course details. Please try again later.
+                </div>
+            `;
+        });
+    };
+});
+</script>
+{% endblock %}

@@ -1,34 +1,18 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ student.name }} - Overview</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="{{ url_for('static', filename='css/styles.css') }}" rel="stylesheet">
-</head>
-<body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container">
-            <a class="navbar-brand" href="{{ url_for('index') }}">
-                <i class="fas fa-graduation-cap me-2"></i>UMBC Degree Planner
-            </a>
-            <span class="navbar-text">
-                <i class="fas fa-robot me-1"></i>AI-Powered Academic Advisor
-            </span>
-        </div>
-    </nav>
+{% extends "base.html" %}
 
-    <div class="container mt-4">
-        <!-- Breadcrumb -->
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
-                <li class="breadcrumb-item"><a href="{{ url_for('students') }}">Students</a></li>
-                <li class="breadcrumb-item active">{{ student.name }}</li>
-            </ol>
-        </nav>
+{% block title %}{{ student.name }} - Overview{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('students') }}">Students</a></li>
+        <li class="breadcrumb-item active">{{ student.name }}</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
 
         <div class="row">
             <!-- Student Info Sidebar -->
@@ -45,24 +29,46 @@
                         <div class="student-info-item">
                             <span class="student-info-label">Learning Style</span>
                             <span class="student-info-value">
-                                <i class="fas fa-brain me-1"></i>{{ student.learning_style }}
+                                <i class="fas fa-brain me-1"></i>{{ student.learning_style or student.learningStyle or "Not specified" }}
                             </span>
                         </div>
                         <div class="student-info-item">
                             <span class="student-info-label">Degree</span>
-                            <span class="student-info-value">{{ student.degree_name }}</span>
+                            <span class="student-info-value">
+                                {% if degree %}
+                                    {{ degree.name }}
+                                {% else %}
+                                    {{ student.degree_name or "Not specified" }}
+                                {% endif %}
+                            </span>
                         </div>
+                        {% if degree %}
+                        <div class="student-info-item">
+                            <span class="student-info-label">Department</span>
+                            <span class="student-info-value">{{ degree.department }}</span>
+                        </div>
+                        <div class="student-info-item">
+                            <span class="student-info-label">Degree Type</span>
+                            <span class="student-info-value">{{ degree.type }}</span>
+                        </div>
+                        {% endif %}
                         <div class="student-info-item">
                             <span class="student-info-label">Expected Graduation</span>
                             <span class="student-info-value">{{ student.expected_graduation }}</span>
                         </div>
                         <div class="student-info-item">
                             <span class="student-info-label">Preferred Load</span>
-                            <span class="student-info-value">{{ student.preferred_course_load }} courses</span>
+                            <span class="student-info-value">
+                                {{ student.preferred_course_load or student.preferredCourseLoad or "Not specified" }}
+                                {% if student.preferred_course_load or student.preferredCourseLoad %} courses{% endif %}
+                            </span>
                         </div>
                         <div class="student-info-item">
                             <span class="student-info-label">Work Hours</span>
-                            <span class="student-info-value">{{ student.work_hours_per_week }}h/week</span>
+                            <span class="student-info-value">
+                                {% set work_hours = student.work_hours_per_week or student.workHoursPerWeek %}
+                                {% if work_hours %}{{ work_hours }}h/week{% else %}Not specified{% endif %}
+                            </span>
                         </div>
                         <div class="student-info-item">
                             <span class="student-info-label">Completed Courses</span>
@@ -202,42 +208,466 @@
                             <div class="card-body">
                                 {% if completed_courses %}
                                 <h6>Completed Courses ({{ completed_courses|length }})</h6>
-                                <div class="row">
+                                <div class="row" id="completedCoursesContainer">
                                     {% for course in completed_courses[:6] %}
-                                    <div class="col-md-4 mb-2">
+                                    <div class="col-md-4 mb-2 course-item-wrapper">
                                         <div class="course-item-small">
-                                            <div><strong>{{ course.course_code }}</strong></div>
-                                            <div><small>{{ course.course_name }}</small></div>
+                                            <div><strong>{{ course.id or course.course_id }}</strong></div>
+                                            <div><small>{{ course.name or course.course_name }}</small></div>
+                                            {% if course.grade %}
+                                            <div class="course-grade">
+                                                <span class="badge bg-success">{{ course.grade }}</span>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                    
+                                    <!-- Hidden courses for expansion -->
+                                    {% for course in completed_courses[6:] %}
+                                    <div class="col-md-4 mb-2 course-item-wrapper hidden-course" style="display: none;">
+                                        <div class="course-item-small">
+                                            <div><strong>{{ course.id or course.course_id }}</strong></div>
+                                            <div><small>{{ course.name or course.course_name }}</small></div>
+                                            {% if course.grade %}
+                                            <div class="course-grade">
+                                                <span class="badge bg-success">{{ course.grade }}</span>
+                                            </div>
+                                            {% endif %}
                                         </div>
                                     </div>
                                     {% endfor %}
                                 </div>
+                                
                                 {% if completed_courses|length > 6 %}
-                                <p class="text-muted">... and {{ completed_courses|length - 6 }} more</p>
+                                <div class="text-center mt-2">
+                                    <button class="btn btn-outline-primary btn-sm" id="toggleCompletedCourses">
+                                        <i class="fas fa-chevron-down me-1"></i>
+                                        Show {{ completed_courses|length - 6 }} more courses
+                                    </button>
+                                </div>
                                 {% endif %}
                                 {% endif %}
                                 
                                 {% if enrolled_courses %}
                                 <h6 class="mt-3">Currently Enrolled ({{ enrolled_courses|length }})</h6>
-                                <div class="row">
-                                    {% for course in enrolled_courses %}
-                                    <div class="col-md-4 mb-2">
+                                <div class="row" id="enrolledCoursesContainer">
+                                    {% for course in enrolled_courses[:6] %}
+                                    <div class="col-md-4 mb-2 course-item-wrapper">
                                         <div class="course-item-small enrolled">
-                                            <div><strong>{{ course.course_code }}</strong></div>
-                                            <div><small>{{ course.course_name }}</small></div>
+                                            <div><strong>{{ course.id or course.course_id }}</strong></div>
+                                            <div><small>{{ course.name or course.course_name }}</small></div>
+                                            <div class="course-status">
+                                                <span class="badge bg-primary">Enrolled</span>
+                                            </div>
+                                            <div class="mt-1">
+                                                <button class="btn btn-outline-info btn-xs" 
+                                                        onclick="showCourseDetails('{{ course.id or course.course_id }}')">
+                                                    <i class="fas fa-info-circle"></i> Details
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                     {% endfor %}
+                                    
+                                    <!-- Hidden courses for expansion -->
+                                    {% for course in enrolled_courses[6:] %}
+                                    <div class="col-md-4 mb-2 course-item-wrapper hidden-course" style="display: none;">
+                                        <div class="course-item-small enrolled">
+                                            <div><strong>{{ course.id or course.course_id }}</strong></div>
+                                            <div><small>{{ course.name or course.course_name }}</small></div>
+                                            <div class="course-status">
+                                                <span class="badge bg-primary">Enrolled</span>
+                                            </div>
+                                            <div class="mt-1">
+                                                <button class="btn btn-outline-info btn-xs" 
+                                                        onclick="showCourseDetails('{{ course.id or course.course_id }}')">
+                                                    <i class="fas fa-info-circle"></i> Details
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                
+                                {% if enrolled_courses|length > 6 %}
+                                <div class="text-center mt-2">
+                                    <button class="btn btn-outline-primary btn-sm" id="toggleEnrolledCourses">
+                                        <i class="fas fa-chevron-down me-1"></i>
+                                        Show {{ enrolled_courses|length - 6 }} more courses
+                                    </button>
+                                </div>
+                                {% endif %}
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Degree Requirements Section -->
+                {% if requirement_groups %}
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5><i class="fas fa-clipboard-list me-2"></i>Degree Requirements</h5>
+                            </div>
+                            <div class="card-body">
+                                {% for req_group in requirement_groups %}
+                                <div class="requirement-group mb-3">
+                                    <h6 class="text-primary">{{ req_group.name }}</h6>
+                                    <p class="text-muted small">{{ req_group.description }}</p>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <small class="text-info">
+                                                <i class="fas fa-graduation-cap me-1"></i>
+                                                Minimum {{ req_group.minimumCourses }} course(s)
+                                            </small>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <small class="text-info">
+                                                <i class="fas fa-star me-1"></i>
+                                                Minimum {{ req_group.minimumCredits }} credit(s)
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% if not loop.last %}<hr>{% endif %}
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <!-- Similar Students Section -->
+                {% if similar_students %}
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5><i class="fas fa-users me-2"></i>Similar Students</h5>
+                                <small class="text-muted">Students with similar academic performance patterns</small>
+                            </div>
+                            <div class="card-body">
+                                <div id="similarStudentsList">
+                                    {% for similar in similar_students %}
+                                    <div class="similar-student mb-3 {% if loop.index > 10 %}similar-student-extra{% endif %}" {% if loop.index > 10 %}style="display: none;"{% endif %}>
+                                        <div class="row align-items-center">
+                                            <div class="col-md-4">
+                                                <h6 class="mb-1">{{ similar.student.name }}</h6>
+                                                <small class="text-muted">ID: {{ similar.student.id }}</small>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <div class="text-center">
+                                                    <div class="similarity-score">
+                                                        <span class="badge bg-success fs-6">{{ (similar.similarity * 100)|round(1) }}%</span>
+                                                    </div>
+                                                    <small class="text-muted">Similarity</small>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-2">
+                                                <small class="text-info">
+                                                    <i class="fas fa-brain me-1"></i>
+                                                    {{ similar.student.learningStyle or "Unknown" }}
+                                                </small>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <small class="text-secondary">
+                                                    <i class="fas fa-book me-1"></i>
+                                                    {{ similar.common_courses|length if similar.common_courses else 0 }} common courses
+                                                </small>
+                                                {% if similar.common_courses %}
+                                                <div class="mt-1">
+                                                    {% for course in similar.common_courses[:3] %}
+                                                    <span class="badge bg-light text-dark me-1">{{ course }}</span>
+                                                    {% endfor %}
+                                                    {% if similar.common_courses|length > 3 %}
+                                                    <span class="text-muted small">+{{ similar.common_courses|length - 3 }} more</span>
+                                                    {% endif %}
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% if not loop.last and loop.index <= 10 %}<hr>{% endif %}
+                                    {% if loop.index == 10 and similar_students|length > 10 %}<hr class="similar-students-divider">{% endif %}
+                                    {% if loop.index > 10 and not loop.last %}<hr class="similar-student-extra" style="display: none;">{% endif %}
+                                    {% endfor %}
+                                </div>
+                                
+                                {% if similar_students|length > 10 %}
+                                <div class="text-center mt-3">
+                                    <button class="btn btn-outline-primary btn-sm" id="toggleSimilarStudentsBtn" onclick="toggleSimilarStudents()">
+                                        <span id="similarStudentsToggleText">Show {{ similar_students|length - 10 }} more students</span>
+                                        <i class="fas fa-chevron-down ms-2" id="similarStudentsToggleIcon"></i>
+                                    </button>
                                 </div>
                                 {% endif %}
                             </div>
                         </div>
                     </div>
                 </div>
+                {% endif %}
+            </div>
+        </div>
+
+<!-- Course Details Modal -->
+<div class="modal fade" id="courseDetailsModal" tabindex="-1" aria-labelledby="courseDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="courseDetailsModalLabel">
+                    <i class="fas fa-book me-2"></i>Course Details
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="courseDetailsBody">
+                <div class="text-center">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
+</div>
+{% endblock %}
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+{% block extra_css %}
+<style>
+    .similar-student-extra {
+        transition: opacity 0.3s ease-in-out;
+    }
+    
+    .similar-students-toggle {
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border-radius: 5px;
+    }
+    
+    .similar-students-toggle:hover {
+        background-color: #f8f9fa;
+        padding: 2px 8px;
+    }
+    
+    .similar-students-toggle i {
+        transition: transform 0.2s ease;
+    }
+</style>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle completed courses toggle
+    const toggleCompletedBtn = document.getElementById('toggleCompletedCourses');
+    if (toggleCompletedBtn) {
+        toggleCompletedBtn.addEventListener('click', function() {
+            const hiddenCourses = document.querySelectorAll('#completedCoursesContainer .hidden-course');
+            const isExpanded = hiddenCourses[0] && hiddenCourses[0].style.display !== 'none';
+            
+            hiddenCourses.forEach(course => {
+                course.style.display = isExpanded ? 'none' : 'block';
+            });
+            
+            const icon = this.querySelector('i');
+            const text = this.querySelector('span') || this;
+            
+            if (isExpanded) {
+                icon.className = 'fas fa-chevron-down me-1';
+                const hiddenCount = hiddenCourses.length;
+                this.innerHTML = `<i class="fas fa-chevron-down me-1"></i>Show ${hiddenCount} more courses`;
+            } else {
+                icon.className = 'fas fa-chevron-up me-1';
+                this.innerHTML = '<i class="fas fa-chevron-up me-1"></i>Show fewer courses';
+            }
+        });
+    }
+    
+    // Handle enrolled courses toggle
+    const toggleEnrolledBtn = document.getElementById('toggleEnrolledCourses');
+    if (toggleEnrolledBtn) {
+        toggleEnrolledBtn.addEventListener('click', function() {
+            const hiddenCourses = document.querySelectorAll('#enrolledCoursesContainer .hidden-course');
+            const isExpanded = hiddenCourses[0] && hiddenCourses[0].style.display !== 'none';
+            
+            hiddenCourses.forEach(course => {
+                course.style.display = isExpanded ? 'none' : 'block';
+            });
+            
+            const icon = this.querySelector('i');
+            
+            if (isExpanded) {
+                icon.className = 'fas fa-chevron-down me-1';
+                const hiddenCount = hiddenCourses.length;
+                this.innerHTML = `<i class="fas fa-chevron-down me-1"></i>Show ${hiddenCount} more courses`;
+            } else {
+                icon.className = 'fas fa-chevron-up me-1';
+                this.innerHTML = '<i class="fas fa-chevron-up me-1"></i>Show fewer courses';
+            }
+        });
+    }
+    
+    // Course details functionality
+    window.showCourseDetails = function(courseId) {
+        const modal = new bootstrap.Modal(document.getElementById('courseDetailsModal'));
+        const modalBody = document.getElementById('courseDetailsBody');
+        
+        // Show loading spinner
+        modalBody.innerHTML = `
+            <div class="text-center">
+                <div class="spinner-border" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        `;
+        
+        modal.show();
+        
+        // Fetch course schedule details first
+        fetch(`/api/course/${courseId}/schedule`)
+        .then(r => r.json())
+        .then(scheduleData => {
+            // Get the first instructor's ID for compatibility analysis
+            const instructorId = scheduleData.instructors?.[0]?.faculty?.id || 'F01030';
+            
+            // Fetch compatibility data using the actual instructor
+            return Promise.all([
+                Promise.resolve(scheduleData),
+                fetch(`/api/compatibility/${instructorId}/{{ student.learning_style or student.learningStyle or "Visual" }}`).then(r => r.json())
+            ]);
+        })
+        .then(([scheduleData, compatibilityData]) => {
+            let content = `
+                <div class="course-details">
+                    <h6>${scheduleData.course?.name || courseId}</h6>
+                    <p class="text-muted">${scheduleData.course?.department || 'Unknown Department'}</p>
+            `;
+            
+            // Faculty information
+            if (scheduleData.instructors && scheduleData.instructors.length > 0) {
+                content += `
+                    <div class="mt-3">
+                        <h6><i class="fas fa-chalkboard-teacher me-2"></i>Instructors</h6>
+                        <div class="row">
+                `;
+                
+                scheduleData.instructors.forEach(instructor => {
+                    const compatibility = compatibilityData.compatibility_score || 0.5;
+                    const compatibilityClass = compatibility >= 0.8 ? 'success' : compatibility >= 0.6 ? 'warning' : 'secondary';
+                    
+                    content += `
+                        <div class="col-md-6 mb-3">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h6 class="card-title">${instructor.faculty.name}</h6>
+                                    <p class="text-muted mb-2">${instructor.faculty.department}</p>
+                                    <div class="mb-2">
+                                        <span class="badge bg-info">Rating: ${instructor.faculty.avgRating}/5.0</span>
+                                    </div>
+                                    <div class="mb-2">
+                                        <small><strong>Teaching Style:</strong> ${instructor.faculty.teachingStyle?.join(', ') || 'Not specified'}</small>
+                                    </div>
+                                    <div class="mb-2">
+                                        <small><strong>Terms:</strong> ${instructor.teaching_terms?.join(', ') || 'Not specified'}</small>
+                                    </div>
+                                    <div class="compatibility-score">
+                                        <span class="badge bg-${compatibilityClass}">
+                                            ${Math.round(compatibility * 100)}% Match
+                                        </span>
+                                        <small class="d-block text-muted">${compatibilityData.notes || 'Compatibility analysis'}</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                content += `
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Terms offered
+            if (scheduleData.offered_terms && scheduleData.offered_terms.length > 0) {
+                content += `
+                    <div class="mt-3">
+                        <h6><i class="fas fa-calendar me-2"></i>Offered Terms</h6>
+                        <div class="row">
+                `;
+                
+                scheduleData.offered_terms.forEach(term => {
+                    content += `
+                        <div class="col-md-4 mb-2">
+                            <div class="card">
+                                <div class="card-body text-center p-2">
+                                    <h6 class="card-title mb-1">${term.name}</h6>
+                                    <small class="text-muted">${term.type}</small>
+                                    <div class="mt-1">
+                                        <small>${term.startDate} to ${term.endDate}</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                content += `
+                        </div>
+                    </div>
+                `;
+            }
+            
+            content += '</div>';
+            modalBody.innerHTML = content;
+        })
+        .catch(error => {
+            console.error('Error fetching course details:', error);
+            modalBody.innerHTML = `
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Unable to load course details. Please try again later.
+                </div>
+            `;
+        });
+    };
+    
+    // Toggle similar students visibility
+    window.toggleSimilarStudents = function() {
+        const extraStudents = document.querySelectorAll('.similar-student-extra');
+        const extraHrs = document.querySelectorAll('hr.similar-student-extra');
+        const toggleText = document.getElementById('similarStudentsToggleText');
+        const toggleIcon = document.getElementById('similarStudentsToggleIcon');
+        const totalExtra = extraStudents.length;
+        
+        if (extraStudents.length > 0) {
+            const isHidden = extraStudents[0].style.display === 'none';
+            
+            if (isHidden) {
+                // Show extra students
+                extraStudents.forEach(student => {
+                    student.style.display = 'block';
+                });
+                extraHrs.forEach(hr => {
+                    hr.style.display = 'block';
+                });
+                toggleText.textContent = 'Show fewer students';
+                toggleIcon.className = 'fas fa-chevron-up ms-2';
+            } else {
+                // Hide extra students
+                extraStudents.forEach(student => {
+                    student.style.display = 'none';
+                });
+                extraHrs.forEach(hr => {
+                    hr.style.display = 'none';
+                });
+                toggleText.textContent = `Show ${totalExtra} more students`;
+                toggleIcon.className = 'fas fa-chevron-down ms-2';
+            }
+        }
+    };
+});
+</script>
+{% endblock %}
