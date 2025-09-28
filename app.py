@@ -107,6 +107,11 @@ def students():
         logger.error(f"Error loading students page: {e}")
         return render_template('students.html', students=[], search='', error=str(e))
 
+@app.route('/faculty')
+def faculty():
+    """Faculty directory and compatibility page"""
+    return render_template('faculty.html')
+
 @app.route('/student/<student_id>')
 def student_overview(student_id):
     """Student overview page - degree progress, timeline, risk factors"""
@@ -121,9 +126,12 @@ def student_overview(student_id):
         
         return render_template('student_overview.html', 
                              student=data['student'],
+                             degree=data.get('degree'),
                              completed_courses=data['completed_courses'],
                              enrolled_courses=data['enrolled_courses'],
-                             degree_info=data['degree_info'])
+                             degree_info=data['degree_info'],
+                             similar_students=data.get('similar_students', []),
+                             requirement_groups=data.get('requirement_groups', []))
     except Exception as e:
         logger.error(f"Error loading student overview for {student_id}: {e}")
         return render_template('error.html', error=str(e)), 500
@@ -434,16 +442,104 @@ def debug_student_data(student_id):
         
         return jsonify({
             "student": data['student'],
+            "degree": data.get('degree'),
             "degree_info": data['degree_info'],
             "completed_courses_count": len(data['completed_courses']),
             "enrolled_courses_count": len(data['enrolled_courses']),
+            "similar_students_count": len(data.get('similar_students', [])),
+            "requirement_groups_count": len(data.get('requirement_groups', [])),
             "completed_courses_sample": data['completed_courses'][:2],  # First 2 for inspection
-            "enrolled_courses_sample": data['enrolled_courses'][:2]
+            "enrolled_courses_sample": data['enrolled_courses'][:2],
+            "similar_students": data.get('similar_students', []),
+            "requirement_groups": data.get('requirement_groups', [])
         })
     
     except Exception as e:
         logger.error("Error in debug endpoint: %s", e)
         return jsonify({"error": str(e)}), 500
+
+@app.route('/api/degree/<degree_id>/requirements')
+def get_degree_requirements(degree_id):
+    """API endpoint to get degree requirements"""
+    try:
+        if not neo4j_client:
+            return jsonify({"error": "Neo4j not connected"}), 500
+        
+        requirements = neo4j_client.get_degree_requirements(degree_id)
+        return jsonify(requirements) if requirements else jsonify({"error": "Degree not found"}), 404
+    except Exception as e:
+        logger.error(f"Error fetching degree requirements: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/student/<student_id>/similar')
+def get_student_similar(student_id):
+    """API endpoint to get similar students"""
+    try:
+        if not neo4j_client:
+            return jsonify({"error": "Neo4j not connected"}), 500
+        
+        similar_students = neo4j_client.get_similar_students(student_id)
+        return jsonify(similar_students)
+    except Exception as e:
+        logger.error(f"Error fetching similar students: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/faculty/<faculty_id>')
+def get_faculty_details(faculty_id):
+    """API endpoint to get faculty information and teaching assignments"""
+    try:
+        if not neo4j_client:
+            return jsonify({"error": "Neo4j not connected"}), 500
+        
+        faculty_info = neo4j_client.get_faculty_info(faculty_id)
+        return jsonify(faculty_info) if faculty_info else jsonify({"error": "Faculty not found"}), 404
+    except Exception as e:
+        logger.error(f"Error fetching faculty details: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/course/<course_id>/schedule')
+def get_course_schedule(course_id):
+    """API endpoint to get course scheduling information"""
+    try:
+        if not neo4j_client:
+            return jsonify({"error": "Neo4j not connected"}), 500
+        
+        schedule_info = neo4j_client.get_course_schedule_info(course_id)
+        return jsonify(schedule_info) if schedule_info else jsonify({"error": "Course not found"}), 404
+    except Exception as e:
+        logger.error(f"Error fetching course schedule: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/compatibility/<faculty_id>/<learning_style>')
+def get_faculty_compatibility(faculty_id, learning_style):
+    """API endpoint to get faculty-student compatibility analysis"""
+    try:
+        if not neo4j_client:
+            return jsonify({"error": "Neo4j not connected"}), 500
+        
+        compatibility = neo4j_client.get_faculty_student_compatibility(faculty_id, learning_style)
+        return jsonify(compatibility)
+    except Exception as e:
+        logger.error(f"Error calculating compatibility: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/faculty/all')
+def get_all_faculty():
+    """API endpoint to get all faculty members"""
+    try:
+        if not neo4j_client:
+            return jsonify({"error": "Neo4j not connected"}), 500
+        
+        faculty_list = neo4j_client.get_all_faculty()
+        return jsonify(faculty_list)
+    except Exception as e:
+        logger.error(f"Error fetching faculty list: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/test/new-features')
+def test_new_features():
+    """Test page for new degree and relationship features"""
+    return render_template('test_features.html')
 
 if __name__ == '__main__':
     # Check for environment variables

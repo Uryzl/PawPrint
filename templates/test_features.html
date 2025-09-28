@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% block title %}Test New Features{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+        <li class="breadcrumb-item active">Test New Features</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-flask me-2"></i>New Features Testing</h5>
+            </div>
+            <div class="card-body">
+                <p class="lead">Test the newly implemented nodes and relationships:</p>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>New Entities Added:</h6>
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item">
+                                <i class="fas fa-graduation-cap me-2 text-primary"></i>
+                                <strong>Degree Nodes</strong> - Bachelor programs with credit requirements
+                            </li>
+                            <li class="list-group-item">
+                                <i class="fas fa-clipboard-list me-2 text-success"></i>
+                                <strong>RequirementGroup Nodes</strong> - Course requirement categories
+                            </li>
+                            <li class="list-group-item">
+                                <i class="fas fa-chalkboard-teacher me-2 text-info"></i>
+                                <strong>Faculty Nodes</strong> - Professors with teaching styles and ratings
+                            </li>
+                            <li class="list-group-item">
+                                <i class="fas fa-calendar me-2 text-warning"></i>
+                                <strong>Term Nodes</strong> - Academic terms with scheduling information
+                            </li>
+                            <li class="list-group-item">
+                                <i class="fas fa-users me-2 text-info"></i>
+                                <strong>SIMILAR_PERFORMANCE</strong> - Student similarity relationships
+                            </li>
+                            <li class="list-group-item">
+                                <i class="fas fa-arrow-right me-2 text-warning"></i>
+                                <strong>PURSUING</strong> - Student-Degree relationships
+                            </li>
+                            <li class="list-group-item">
+                                <i class="fas fa-check me-2 text-success"></i>
+                                <strong>FULFILLS</strong> - Course-Requirement relationships
+                            </li>
+                            <li class="list-group-item">
+                                <i class="fas fa-user-tie me-2 text-primary"></i>
+                                <strong>TEACHES</strong> - Faculty-Course teaching assignments
+                            </li>
+                            <li class="list-group-item">
+                                <i class="fas fa-clock me-2 text-secondary"></i>
+                                <strong>OFFERED_IN</strong> - Course-Term scheduling relationships
+                            </li>
+                        </ul>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <h6>Test Links:</h6>
+                        <div class="list-group">
+                            <a href="{{ url_for('student_overview', student_id='RE14884') }}" class="list-group-item list-group-item-action">
+                                <i class="fas fa-user me-2"></i>
+                                Student RE14884 - Nicholas Berry (with degree info)
+                            </a>
+                            <a href="{{ url_for('student_overview', student_id='VJ74442') }}" class="list-group-item list-group-item-action">
+                                <i class="fas fa-user me-2"></i>
+                                Student VJ74442 - Sarah Johnson (pursuing CS degree)
+                            </a>
+                            <a href="{{ url_for('debug_student_data', student_id='RE14884') }}" class="list-group-item list-group-item-action">
+                                <i class="fas fa-code me-2"></i>
+                                Debug Data - RE14884 (raw JSON)
+                            </a>
+                            <a href="/api/degree/BS-ComputerScience-1/requirements" class="list-group-item list-group-item-action">
+                                <i class="fas fa-list me-2"></i>
+                                Degree Requirements API
+                            </a>
+                            <a href="/api/student/YS86744/similar" class="list-group-item list-group-item-action">
+                                <i class="fas fa-users me-2"></i>
+                                Similar Students API
+                            </a>
+                            <a href="/api/faculty/F01030" class="list-group-item list-group-item-action">
+                                <i class="fas fa-chalkboard-teacher me-2"></i>
+                                Faculty Details API - Professor Brown
+                            </a>
+                            <a href="/api/course/CSUU 300/schedule" class="list-group-item list-group-item-action">
+                                <i class="fas fa-calendar me-2"></i>
+                                Course Schedule API - Game Development
+                            </a>
+                            <a href="/api/compatibility/F01030/Visual" class="list-group-item list-group-item-action">
+                                <i class="fas fa-user-check me-2"></i>
+                                Faculty Compatibility API (Visual Learner)
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mt-4">
+                    <div class="col-12">
+                        <div class="alert alert-info">
+                            <h6><i class="fas fa-info-circle me-2"></i>What's New:</h6>
+                            <ul class="mb-0">
+                                <li><strong>Degree Information:</strong> Students now display their degree program, department, and credit requirements</li>
+                                <li><strong>Requirement Groups:</strong> Shows organized course requirements with minimum courses/credits</li>
+                                <li><strong>Similar Students:</strong> Displays students with similar academic performance patterns</li>
+                                <li><strong>Course Fulfillment:</strong> Tracks which requirements completed courses fulfill</li>
+                                <li><strong>Faculty Integration:</strong> Instructors with teaching styles, ratings, and course assignments</li>
+                                <li><strong>Academic Scheduling:</strong> Terms and course offering information for planning</li>
+                                <li><strong>Compatibility Analysis:</strong> Matches student learning styles with faculty teaching approaches</li>
+                                <li><strong>Enhanced Data Model:</strong> Supports complex degree planning and scheduling scenarios</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
