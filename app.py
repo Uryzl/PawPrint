@@ -58,35 +58,14 @@ def get_cached_student_data(student_id: str):
     if not neo4j_client:
         return None
     
-    # Use optimized query for better performance
-    query = QueryOptimizer.get_optimized_student_query()
-    
+    # For now, use the original method to ensure all data is properly loaded
+    # TODO: Re-enable optimized query once we verify all fields are correct
     try:
-        with neo4j_client.driver.session() as session:
-            result = session.run(query, student_id=student_id)
-            record = result.single()
-            
-            if not record:
-                return None
-            
-            # Process the optimized result
-            student_data = dict(record['s'])
-            degree_data = dict(record['d']) if record['d'] else None
-            
-            return {
-                'student': neo4j_client._convert_neo4j_types(student_data),
-                'degree': neo4j_client._convert_neo4j_types(degree_data) if degree_data else None,
-                'completed_courses': [neo4j_client._convert_neo4j_types(course) for course in record['completed_courses']],
-                'enrolled_courses': [neo4j_client._convert_neo4j_types(course) for course in record['enrolled_courses']],
-                'requirement_groups': [neo4j_client._convert_neo4j_types(rg) for rg in record['requirement_groups']],
-                'degree_info': degree_data,
-                'similar_students': []  # Load separately to avoid blocking main load
-            }
-            
+        data = neo4j_client.get_student_complete_data(student_id)
+        return data
     except Exception as e:
-        logger.error(f"Error in optimized student data fetch: {e}")
-        # Fallback to original method
-        return neo4j_client.get_student_complete_data(student_id)
+        logger.error(f"Error in student data fetch: {e}")
+        return None
 
 # Initialize clients with error handling
 try:
