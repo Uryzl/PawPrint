@@ -96,6 +96,7 @@ class Neo4jClient:
         query = """
         MATCH (s:Student)
         OPTIONAL MATCH (s)-[:PURSUING]->(d:Degree)
+        WITH s, collect(DISTINCT d.name) as degree_names
         RETURN s.id as id, 
                s.name as name, 
                s.learningStyle as learning_style,
@@ -106,7 +107,11 @@ class Neo4jClient:
                s.workHoursPerWeek as work_hours_per_week,
                s.financialAidStatus as financial_aid_status,
                s.preferredInstructionMode as preferred_instruction_mode,
-               d.name as degree_name
+               CASE 
+                   WHEN size(degree_names) = 0 THEN null
+                   WHEN size(degree_names) = 1 THEN degree_names[0]
+                   ELSE degree_names[0] + " (+" + toString(size(degree_names)-1) + " more)"
+               END as degree_name
         ORDER BY s.name
         LIMIT $limit
         """
@@ -222,9 +227,10 @@ class Neo4jClient:
 
         query = """
         MATCH (s:Student)
-        OPTIONAL MATCH (s)-[:PURSUING]->(d:Degree)
         WHERE toLower(s.name) CONTAINS toLower($search_term) 
            OR toLower(s.id) CONTAINS toLower($search_term)
+        OPTIONAL MATCH (s)-[:PURSUING]->(d:Degree)
+        WITH s, collect(DISTINCT d.name) as degree_names
         RETURN s.id as id, 
                s.name as name, 
                s.learningStyle as learning_style,
@@ -235,7 +241,11 @@ class Neo4jClient:
                s.workHoursPerWeek as work_hours_per_week,
                s.financialAidStatus as financial_aid_status,
                s.preferredInstructionMode as preferred_instruction_mode,
-               d.name as degree_name
+               CASE 
+                   WHEN size(degree_names) = 0 THEN null
+                   WHEN size(degree_names) = 1 THEN degree_names[0]
+                   ELSE degree_names[0] + " (+" + toString(size(degree_names)-1) + " more)"
+               END as degree_name
         ORDER BY s.name
         LIMIT $limit
         """
