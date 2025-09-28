@@ -19,9 +19,13 @@ class DegreePlanner {
             this.returnToHome();
         });
 
-        // Student search functionality
+        // Student search functionality with debouncing
+        let searchTimeout;
         document.getElementById('studentSearch').addEventListener('input', (e) => {
-            this.filterStudents(e.target.value);
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                this.filterStudents(e.target.value);
+            }, 300); // 300ms delay
         });
 
         // Chat functionality
@@ -78,18 +82,26 @@ class DegreePlanner {
         `).join('');
     }
 
-    filterStudents(searchTerm) {
-        const studentItems = document.querySelectorAll('.student-item');
-        const term = searchTerm.toLowerCase();
-
-        studentItems.forEach(item => {
-            const text = item.textContent.toLowerCase();
-            if (text.includes(term)) {
-                item.style.display = 'block';
+    async filterStudents(searchTerm) {
+        try {
+            // Use the API endpoint with search parameter
+            const url = searchTerm.trim() 
+                ? `/api/students?search=${encodeURIComponent(searchTerm)}`
+                : `/api/students`;
+                
+            const response = await fetch(url);
+            const data = await response.json();
+            
+            if (data.success) {
+                this.renderStudentList(data.students);
             } else {
-                item.style.display = 'none';
+                this.showError('Failed to search students: ' + data.error);
             }
-        });
+            
+        } catch (error) {
+            console.error('Error filtering students:', error);
+            this.showError('Failed to search students');
+        }
     }
 
     async selectStudent(studentId) {
