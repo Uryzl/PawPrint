@@ -533,3 +533,226 @@ class GeminiClient:
         except Exception as e:
             logger.error(f"Error generating similar student insights: {e}")
             return f"Error generating similar student insights: {str(e)}"
+
+    def get_course_recommendations(self, student_context: Dict, available_courses: List[Dict], 
+                                 similar_students: List[Dict], degree_progress: Dict = None) -> List[Dict]:
+        """
+        Get AI-powered course recommendations with detailed analysis
+        
+        Args:
+            student_context: Complete student context from Neo4j
+            available_courses: List of courses the student can take
+            similar_students: List of similar students with their performance data
+            degree_progress: Optional degree progress information
+            
+        Returns:
+            List of recommended courses with AI analysis and reasoning
+        """
+        if not self._ensure_model():
+            return []
+        
+        try:
+            student = student_context.get('student', {})
+            completed_courses = student_context.get('completed_courses', [])
+            enrolled_courses = student_context.get('enrolled_courses', [])
+            degree_info = student_context.get('degree_info', {})
+            
+            # Build comprehensive prompt for course recommendations
+            prompt = f"""
+            You are an expert academic advisor at UMBC. Analyze this student's profile and recommend 4-5 courses from the available options.
+
+            STUDENT PROFILE:
+            • Name: {student.get('name', 'Student')}
+            • Learning Style: {student.get('learning_style', 'Unknown')}
+            • Major: {degree_info.get('degree_name', 'Unknown')}
+            • Preferred Course Load: {student.get('preferred_course_load', 'Unknown')} courses/term
+            • Work Hours/Week: {student.get('work_hours_per_week', 'Unknown')}
+            • GPA: {self._calculate_gpa(completed_courses)}
+            
+            ACADEMIC HISTORY:
+            • Completed: {len(completed_courses)} courses
+            • Currently Enrolled: {len(enrolled_courses)} courses
+            
+            Recent Performance:
+            """
+            
+            # Add recent course performance
+            recent_courses = sorted(completed_courses, 
+                                  key=lambda x: x.get('completion_term', x.get('term', '')), reverse=True)[:3]
+            for course in recent_courses:
+                prompt += f"• {course.get('course_name', 'Unknown')} ({course.get('grade', 'N/A')})\n"
+            
+            # Add current enrollment
+            if enrolled_courses:
+                prompt += f"\nCurrently Taking:\n"
+                for course in enrolled_courses[:3]:
+                    prompt += f"• {course.get('course_name', course.get('name', 'Unknown'))}\n"
+            
+            # Add similar student insights
+            if similar_students:
+                prompt += f"\nSIMILAR SUCCESSFUL STUDENTS:\n"
+                for similar in similar_students[:3]:
+                    prompt += f"• {similar.get('name', 'Student')} (GPA: {similar.get('avg_gpa', 0):.2f}, "
+                    prompt += f"Learning: {similar.get('learning_style', 'Unknown')})\n"
+            
+            # Add available courses
+            prompt += f"\nAVAILABLE COURSES ({len(available_courses)} total):\n"
+            for i, course in enumerate(available_courses[:10], 1):  # Show up to 10 courses
+                course_name = course.get('course_name', course.get('name', 'Unknown'))
+                course_id = course.get('course_id', course.get('id', 'Unknown'))
+                level = course.get('level', 'Unknown')
+                credits = course.get('credits', 'Unknown')
+                difficulty = course.get('avg_difficulty', course.get('avgDifficulty', 'Unknown'))
+                
+                prompt += f"{i}. {course_id}: {course_name}\n"
+                prompt += f"   Level: {level}, Credits: {credits}, Avg Difficulty: {difficulty}\n"
+                
+                # Add prerequisites and unlocks if available
+                prereqs = course.get('prerequisites', [])
+                if prereqs:
+                    prereq_names = [p.get('course_id', p.get('id', 'Unknown')) for p in prereqs[:2]]
+                    prompt += f"   Prerequisites: {', '.join(prereq_names)}\n"
+                
+                unlocks = course.get('unlocks', [])
+                if unlocks:
+                    unlock_names = [u.get('course_id', u.get('id', 'Unknown')) for u in unlocks[:2]]
+                    prompt += f"   Unlocks: {', '.join(unlock_names)}\n"
+                
+                prompt += "\n"
+            
+            prompt += f"""
+            TASK: Recommend exactly 4-5 courses from the available list above. For each recommendation:
+
+            Format each recommendation as:
+            COURSE: [Course ID] - [Course Name]
+            PRIORITY: [High/Medium/Low]
+            REASON: [2-3 sentence explanation of why this course is recommended]
+            DIFFICULTY: [Predicted difficulty 1-5 for this specific student]
+            LEARNING_MATCH: [How well it matches their learning style 1-10]
+            STRATEGIC_VALUE: [How this course fits their degree progression]
+
+            Consider:
+            • Student's learning style and preferences
+            • Logical course sequence and prerequisites
+            • Similar students' successful paths
+            • Workload balance with current enrollment
+            • Degree requirements and strategic progression
+            • Student's demonstrated strengths and challenges
+
+            Provide exactly 4-5 recommendations in the format above.
+            """
+            
+            response = self._generate_with_retry(prompt)
+            
+            if not response.text:
+                return []
+            
+            # Parse the AI response to extract structured recommendations
+            recommendations = self._parse_course_recommendations(response.text, available_courses)
+            
+            return recommendations
+            
+        except Exception as e:
+            logger.error(f"Error generating AI course recommendations: {e}")
+            return []
+    
+    def _parse_course_recommendations(self, ai_response: str, available_courses: List[Dict]) -> List[Dict]:
+        """Parse AI recommendation text into structured course data"""
+        recommendations = []
+        lines = ai_response.split('\n')
+        current_rec = {}
+        
+        # Create lookup for available courses
+        course_lookup = {}
+        for course in available_courses:
+            course_id = course.get('course_id', course.get('id', ''))
+            if course_id:
+                course_lookup[course_id.upper()] = course
+        
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+                
+            if line.startswith('COURSE:'):
+                # Save previous recommendation if complete
+                if current_rec and current_rec.get('course_id'):
+                    recommendations.append(current_rec)
+                
+                # Start new recommendation
+                current_rec = {}
+                course_part = line.replace('COURSE:', '').strip()
+                
+                # Extract course ID (first part before dash or colon)
+                if ' - ' in course_part:
+                    course_id = course_part.split(' - ')[0].strip()
+                elif ':' in course_part:
+                    course_id = course_part.split(':')[0].strip()
+                else:
+                    course_id = course_part.split()[0] if course_part.split() else ''
+                
+                # Find matching course data
+                matching_course = course_lookup.get(course_id.upper())
+                if matching_course:
+                    current_rec.update(matching_course)
+                    current_rec['course_id'] = course_id.upper()
+                    current_rec['ai_recommended'] = True
+                else:
+                    # Fallback if course not found
+                    current_rec['course_id'] = course_id
+                    current_rec['course_name'] = course_part
+                    current_rec['ai_recommended'] = True
+                    
+            elif line.startswith('PRIORITY:') and current_rec:
+                priority_text = line.replace('PRIORITY:', '').strip().lower()
+                if 'high' in priority_text:
+                    current_rec['recommendation_score'] = 9.0
+                    current_rec['priority'] = 'High'
+                elif 'medium' in priority_text:
+                    current_rec['recommendation_score'] = 7.0
+                    current_rec['priority'] = 'Medium'
+                else:
+                    current_rec['recommendation_score'] = 5.0
+                    current_rec['priority'] = 'Low'
+                    
+            elif line.startswith('REASON:') and current_rec:
+                current_rec['ai_reasoning'] = line.replace('REASON:', '').strip()
+                
+            elif line.startswith('DIFFICULTY:') and current_rec:
+                try:
+                    difficulty_text = line.replace('DIFFICULTY:', '').strip()
+                    difficulty_num = float(''.join(filter(str.isdigit, difficulty_text.split()[0])))
+                    current_rec['difficulty_prediction'] = min(max(difficulty_num, 1.0), 5.0)
+                except (ValueError, IndexError):
+                    current_rec['difficulty_prediction'] = 3.0
+                    
+            elif line.startswith('LEARNING_MATCH:') and current_rec:
+                try:
+                    match_text = line.replace('LEARNING_MATCH:', '').strip()
+                    match_num = float(''.join(filter(str.isdigit, match_text.split()[0])))
+                    current_rec['learning_style_match'] = min(max(match_num / 10.0, 0.0), 1.0)
+                except (ValueError, IndexError):
+                    current_rec['learning_style_match'] = 0.7
+                    
+            elif line.startswith('STRATEGIC_VALUE:') and current_rec:
+                current_rec['strategic_reasoning'] = line.replace('STRATEGIC_VALUE:', '').strip()
+        
+        # Add the last recommendation
+        if current_rec and current_rec.get('course_id'):
+            recommendations.append(current_rec)
+        
+        # Ensure we have all required fields and sort by priority
+        for rec in recommendations:
+            rec.setdefault('credits', 3)
+            rec.setdefault('level', 300)
+            rec.setdefault('department', 'Unknown')
+            rec.setdefault('recommendation_score', 7.0)
+            rec.setdefault('difficulty_prediction', 3.0)
+            rec.setdefault('learning_style_match', 0.7)
+            rec.setdefault('ai_reasoning', 'AI recommended based on your profile')
+            rec.setdefault('priority', 'Medium')
+        
+        # Sort by recommendation score (descending)
+        recommendations.sort(key=lambda x: x.get('recommendation_score', 0), reverse=True)
+        
+        return recommendations[:5]  # Return top 5

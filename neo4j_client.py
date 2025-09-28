@@ -3077,6 +3077,87 @@ class Neo4jClient:
             'notes': notes
         }
 
+    def get_enhanced_student_context(self, student_id: str) -> Dict:
+        """Get lightweight enhanced context for fast AI recommendations"""
+        # Get basic context (now uses fast demo methods)
+        context = self.get_student_context(student_id)
+        
+        # Add lightweight additional data
+        try:
+            # Quick optimal sequence (top 5 courses only)
+            context["optimal_sequence"] = self._get_demo_available_courses(student_id)[:5]
+            
+            # Simple degree progress
+            context["degree_progress"] = {
+                "total_credits_required": 120,
+                "total_credits_completed": len(context.get("completed_courses", [])) * 3,
+                "completion_percentage": (len(context.get("completed_courses", [])) * 3 / 120) * 100
+            }
+            
+            # Add prerequisites/unlocks only for top 3 available courses
+            available_courses = context.get("available_courses", [])[:3]
+            for course in available_courses:
+                course_id = course.get('course_id', course.get('id'))
+                if course_id:
+                    course["prerequisites"] = self._get_demo_course_prerequisites(course_id)
+                    course["unlocks"] = self._get_demo_courses_unlocked_by(course_id)
+            
+            # Lightweight similar student insights
+            similar_students = context.get("similar_students", [])[:3]  # Top 3 only
+            context["similar_student_course_performance"] = {
+                "successful_course_patterns": ["Math courses early", "Lab courses spaced"],
+                "total_similar_students": len(similar_students)
+            }
+            
+            # Basic preferences
+            context["term_preferences"] = {
+                "preferred_instruction_mode": context.get("student", {}).get("preferred_instruction_mode"),
+                "work_schedule_conflicts": context.get("student", {}).get("work_hours_per_week", 0) > 20
+            }
+            
+        except Exception as e:
+            logger.warning(f"Could not get enhanced context for {student_id}: {e}")
+        
+        return context
+
+    def _get_similar_student_course_insights(self, student_id: str, similar_students: List[Dict]) -> Dict:
+        """Get course performance insights from similar students"""
+        try:
+            insights = {
+                "successful_course_patterns": [],
+                "challenging_courses": [],
+                "recommended_sequences": []
+            }
+            
+            # For demo data, provide sample insights
+            if similar_students:
+                insights["successful_course_patterns"] = [
+                    {
+                        "pattern": "Math courses taken early",
+                        "success_rate": 0.85,
+                        "student_count": len(similar_students)
+                    },
+                    {
+                        "pattern": "Lab courses spaced out",
+                        "success_rate": 0.78,
+                        "student_count": len(similar_students) - 1
+                    }
+                ]
+                
+                insights["challenging_courses"] = [
+                    {
+                        "course_pattern": "High-level theory courses",
+                        "average_difficulty": 4.2,
+                        "success_tips": "Form study groups, attend office hours"
+                    }
+                ]
+            
+            return insights
+            
+        except Exception as e:
+            logger.error(f"Error getting similar student insights: {e}")
+            return {}
+
     def __enter__(self):
         return self
 
