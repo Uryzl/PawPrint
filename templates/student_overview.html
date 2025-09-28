@@ -87,10 +87,7 @@
                            class="list-group-item list-group-item-action active">
                             <i class="fas fa-chart-pie me-2"></i>Overview
                         </a>
-                        <a href="{{ url_for('student_pathway', student_id=student.id) }}" 
-                           class="list-group-item list-group-item-action">
-                            <i class="fas fa-route me-2"></i>Optimal Path
-                        </a>
+
                         <a href="{{ url_for('student_recommendations', student_id=student.id) }}" 
                            class="list-group-item list-group-item-action">
                             <i class="fas fa-lightbulb me-2"></i>Recommendations
@@ -188,11 +185,7 @@
                             </div>
                             <div class="card-body">
                                 <div class="text-center">
-                                    <p class="text-muted">Generate an optimal path to see detailed timeline</p>
-                                    <a href="{{ url_for('student_pathway', student_id=student.id) }}" 
-                                       class="btn btn-outline-primary btn-sm">
-                                        <i class="fas fa-route me-1"></i>View Optimal Path
-                                    </a>
+                                    <p class="text-muted">Course timeline will be available when optimal path is generated</p>
                                 </div>
                             </div>
                         </div>

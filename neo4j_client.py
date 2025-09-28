@@ -1334,7 +1334,7 @@ class Neo4jClient:
             result = session.run(query, course_id=course_id)
             return [dict(record) for record in result]
 
-    def get_similar_students(self, student_id: str, min_similarity: float = 0.7) -> List[Dict]:
+    def get_similar_students(self, student_id: str, min_similarity: float = 0.3) -> List[Dict]:
         """Find students similar to the given student"""
         self._check_connection()
 
@@ -1361,9 +1361,41 @@ class Neo4jClient:
         LIMIT 10
         """
         
-        with self.driver.session() as session:
-            result = session.run(query, student_id=student_id, min_similarity=min_similarity)
-            return [dict(record) for record in result]
+        try:
+            with self.driver.session() as session:
+                result = session.run(query, student_id=student_id, min_similarity=min_similarity)
+                similar_students = [dict(record) for record in result]
+                
+                # If no similar students found via relationships, try finding students with same learning style
+                if not similar_students:
+                    fallback_query = """
+                    MATCH (s:Student {id: $student_id})
+                    MATCH (similar:Student)
+                    WHERE similar.learningStyle = s.learningStyle AND similar.id <> $student_id
+                    
+                    OPTIONAL MATCH (similar)-[comp:COMPLETED]->(c:Course)
+                    WITH s, similar,
+                         AVG(CASE comp.grade
+                             WHEN 'A' THEN 4.0 WHEN 'A-' THEN 3.7 WHEN 'B+' THEN 3.3
+                             WHEN 'B' THEN 3.0 WHEN 'B-' THEN 2.7 WHEN 'C+' THEN 2.3
+                             WHEN 'C' THEN 2.0 WHEN 'C-' THEN 1.7 WHEN 'D+' THEN 1.3
+                             WHEN 'D' THEN 1.0 ELSE 0.0 
+                         END) AS avg_gpa,
+                         COUNT(comp) as courses_completed
+                         
+                    RETURN similar.id as id, similar.name as name, similar.learningStyle as learning_style,
+                           0.5 as similarity, 'LEARNING_STYLE_MATCH' as similarity_type,
+                           avg_gpa, courses_completed
+                    ORDER BY avg_gpa DESC
+                    LIMIT 5
+                    """
+                    result = session.run(fallback_query, student_id=student_id)
+                    similar_students = [dict(record) for record in result]
+                    
+                return similar_students
+        except Exception as e:
+            logger.error(f"Error getting similar students for {student_id}: {e}")
+            return []
 
     def get_student_context(self, student_id: str) -> Dict:
         """Get comprehensive context about a student for AI recommendations"""

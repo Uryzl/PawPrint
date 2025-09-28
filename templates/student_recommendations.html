@@ -14,65 +14,83 @@
 {% endblock %}
 
 {% block content %}
-<div class="row">
-            <!-- Student Info Sidebar -->
-            <div class="col-md-3">
-                <div class="card">
-                    <div class="card-header">
-                        <h5><i class="fas fa-user me-2"></i>{{ student.name }}</h5>
-                    </div>
-                    <div class="card-body">
-                        <p><strong>Degree:</strong><br>{{ student.degree_name }}</p>
-                        <p><strong>Learning Style:</strong><br>{{ student.learning_style }}</p>
-                    </div>
-                </div>
-
-                <!-- Navigation -->
-                <div class="card mt-3">
-                    <div class="card-header">
-                        <h6><i class="fas fa-bars me-2"></i>Navigation</h6>
-                    </div>
-                    <div class="list-group list-group-flush">
-                        <a href="{{ url_for('student_overview', student_id=student.id) }}" 
-                           class="list-group-item list-group-item-action">
-                            <i class="fas fa-chart-pie me-2"></i>Overview
-                        </a>
-                        <a href="{{ url_for('student_pathway', student_id=student.id) }}" 
-                           class="list-group-item list-group-item-action">
-                            <i class="fas fa-route me-2"></i>Optimal Path
-                        </a>
-                        <a href="{{ url_for('student_recommendations', student_id=student.id) }}" 
-                           class="list-group-item list-group-item-action active">
-                            <i class="fas fa-lightbulb me-2"></i>Recommendations
-                        </a>
-                        <a href="{{ url_for('student_chat', student_id=student.id) }}" 
-                           class="list-group-item list-group-item-action">
-                            <i class="fas fa-comments me-2"></i>AI Assistant
-                        </a>
-                    </div>
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="student-header">
+                <h2><i class="fas fa-graduation-cap me-2"></i>{{ student.name }}</h2>
+                <div class="student-meta">
+                    <span class="badge bg-light text-dark me-2">ID: {{ student.id }}</span>
+                    <span class="badge bg-primary me-2">{{ student.degree_title or 'No degree' }}</span>
                 </div>
             </div>
-
-            <!-- Main Content -->
-            <div class="col-md-9">
-                <h2><i class="fas fa-lightbulb me-2"></i>Recommendations for {{ student.name }}</h2>
-                
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="card">
-                            <div class="card-header">
-                                <h5><i class="fas fa-star me-2"></i>Next Term Courses</h5>
-                            </div>
-                            <div class="card-body">
-                                {% if recommendations %}
+            
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-star me-2"></i>Next Term Course Recommendations</h5>
+                        </div>
+                        <div class="card-body">
+                            {% if recommendations %}
+                                <div class="row">
                                     {% for rec in recommendations %}
-                                    <div class="recommendation-item">
-                                        <h6>{{ rec.course_name }}</h6>
-                                        <p>{{ rec.description }}</p>
-                                        <div class="recommendation-score">{{ rec.score }}</div>
+                                    <div class="col-md-6 mb-3">
+                                        <div class="card recommendation-item fade-in h-100">
+                                            <div class="card-body">
+                                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                                    <div>
+                                                        <h5 class="mb-1">{{ rec.course_name or 'Unknown Course' }} <span class="text-muted">({{ rec.course_id or 'N/A' }})</span></h5>
+                                                        <div class="text-muted small">
+                                                            {{ rec.department_display or 'General' }} • Level {{ rec.level_display or 'N/A' }} • {{ rec.credits_display or 0 }} credits
+                                                        </div>
+                                                    </div>
+                                                    <div class="text-end">
+                                                        <span class="badge bg-dark text-white recommendation-score-badge">Score {{ rec.score_display or 0 }}</span>
+                                                        <div class="text-muted small">Style match {{ rec.match_percent or 0 }}%</div>
+                                                    </div>
+                                                </div>
+                                                <div class="row small text-muted">
+                                                    <div class="col-md-6">
+                                                        <ul class="list-unstyled recommendation-details mb-2">
+                                                            <li><strong>Predicted difficulty:</strong> {{ rec.difficulty_display or 0 }}/5</li>
+                                                            <li><strong>Instruction modes:</strong> {{ rec.instruction_modes_display or 'Not specified' }}</li>
+                                                            <li><strong>Tags:</strong> {{ rec.tags_display or 'None' }}</li>
+                                                        </ul>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <ul class="list-unstyled recommendation-details mb-2">
+                                                            <li>
+                                                                <strong>Prerequisites:</strong>
+                                                                {% if rec.prerequisite_total > 0 %}
+                                                                    {{ rec.prerequisite_names|join(', ') }}
+                                                                    {% if rec.prerequisite_total > rec.prerequisite_names|length %}
+                                                                        +{{ rec.prerequisite_total - rec.prerequisite_names|length }} more
+                                                                    {% endif %}
+                                                                {% else %}
+                                                                    None
+                                                                {% endif %}
+                                                            </li>
+                                                            <li>
+                                                                <strong>Unlocks next:</strong>
+                                                                {% if rec.unlock_total > 0 %}
+                                                                    {{ rec.unlock_names|join(', ') }}
+                                                                    {% if rec.unlock_total > rec.unlock_names|length %}
+                                                                        +{{ rec.unlock_total - rec.unlock_names|length }} more
+                                                                    {% endif %}
+                                                                {% else %}
+                                                                    No additional courses
+                                                                {% endif %}
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                     {% endfor %}
-                                {% else %}
+                                </div>
+                            {% else %}
                                 <div class="text-center text-muted">
                                     <i class="fas fa-lightbulb fa-3x mb-3"></i>
                                     <h5>Generate Recommendations</h5>
@@ -81,56 +99,32 @@
                                         <i class="fas fa-magic me-1"></i>Generate Recommendations
                                     </button>
                                 </div>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="col-md-6">
-                        <div class="card">
-                            <div class="card-header">
-                                <h5><i class="fas fa-users me-2"></i>Peer Insights</h5>
-                            </div>
-                            <div class="card-body">
-                                {% if similar_students %}
-                                    {% for peer in similar_students %}
-                                    <div class="peer-insight-item mb-3">
-                                        <h6>{{ peer.name }}</h6>
-                                        <p><small>{{ peer.insight }}</small></p>
-                                    </div>
-                                    {% endfor %}
-                                {% else %}
-                                <div class="text-center text-muted">
-                                    <i class="fas fa-users fa-3x mb-3"></i>
-                                    <h5>Similar Student Insights</h5>
-                                    <p>Learn from students with similar academic profiles and goals.</p>
-                                </div>
-                                {% endif %}
-                            </div>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
             </div>
         </div>
+    </div>
 </div>
 {% endblock %}
 
 {% block extra_scripts %}
-    <script>
-        async function generateRecommendations() {
-            try {
-                const response = await fetch(`/api/course-recommendations/{{ student.id }}`);
-                const data = await response.json();
-                
-                if (data.success) {
-                    // Reload page to show recommendations
-                    window.location.reload();
-                } else {
-                    alert('Error: ' + data.error);
-                }
-            } catch (error) {
-                alert('Error: ' + error.message);
+<script>
+    async function generateRecommendations() {
+        try {
+            const response = await fetch(`/api/course-recommendations/{{ student.id }}`);
+            const data = await response.json();
+            
+            if (data.success) {
+                // Reload page to show recommendations
+                window.location.reload();
+            } else {
+                alert('Error: ' + data.error);
             }
+        } catch (error) {
+            alert('Error: ' + error.message);
         }
-    </script>
+    }
+</script>
 {% endblock %}

@@ -6,7 +6,6 @@
 class DegreePlanner {
     constructor() {
         this.selectedStudent = null;
-        this.optimizedPath = null;
         this.charts = {};
         
         this.initializeEventListeners();
@@ -23,13 +22,6 @@ class DegreePlanner {
         // Student search functionality
         document.getElementById('studentSearch').addEventListener('input', (e) => {
             this.filterStudents(e.target.value);
-        });
-
-        // Optimize path button
-        document.getElementById('optimizeBtn').addEventListener('click', () => {
-            if (this.selectedStudent) {
-                this.optimizePath(this.selectedStudent.id);
-            }
         });
 
         // Chat functionality

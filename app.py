@@ -177,22 +177,68 @@ def student_recommendations(student_id):
         
         # Get recommendations
         recommendations = []
-        similar_students = []
         if degree_optimizer:
             try:
                 recommendations = degree_optimizer.get_course_recommendations(student_id)
             except Exception as e:
                 logger.warning("Could not get recommendations: %s", e)
         
-        try:
-            similar_students = neo4j_client.get_similar_students(student_id)
-        except Exception as e:
-            logger.warning("Could not get similar students: %s", e)
+        def ensure_number(value, default=0.0):
+            if isinstance(value, (int, float)):
+                return float(value)
+            try:
+                if value is not None:
+                    return float(value)
+            except (TypeError, ValueError):
+                pass
+            return float(default)
+
+        def format_list(values, default="Not specified"):
+            if not values:
+                return default
+            if isinstance(values, str):
+                values = [values]
+            formatted = [str(v) for v in values if v]
+            return ", ".join(formatted) if formatted else default
+
+        def sample_course_names(items, limit=3):
+            names = []
+            for item in items or []:
+                name = item.get('course_name') or item.get('name') or item.get('course_id')
+                if name:
+                    names.append(name)
+            total = len(names)
+            return names[:limit], total
+
+        formatted_recommendations = []
+        for rec in recommendations:
+            try:
+                formatted = rec.copy()
+                formatted['score_display'] = round(ensure_number(rec.get('recommendation_score')), 1)
+                formatted['difficulty_display'] = round(ensure_number(rec.get('difficulty_prediction'), 0), 1)
+                formatted['match_percent'] = int(round(ensure_number(rec.get('learning_style_match'), 0) * 100))
+                formatted['instruction_modes_display'] = format_list(rec.get('instruction_modes'), "Not specified")
+                formatted['tags_display'] = format_list(rec.get('tags'), "None")
+                prereq_names, prereq_total = sample_course_names(rec.get('prerequisites'))
+                formatted['prerequisite_names'] = prereq_names
+                formatted['prerequisite_total'] = prereq_total
+                unlock_names, unlock_total = sample_course_names(rec.get('unlocks'))
+                formatted['unlock_names'] = unlock_names
+                formatted['unlock_total'] = unlock_total
+                formatted['credits_display'] = int(ensure_number(rec.get('credits'), 0))
+                formatted['level_display'] = rec.get('level') or "N/A"
+                formatted['department_display'] = rec.get('department') or "General"
+                # Ensure required fields exist
+                formatted['course_name'] = rec.get('course_name') or 'Unknown Course'
+                formatted['course_id'] = rec.get('course_id') or 'N/A'
+                formatted_recommendations.append(formatted)
+            except Exception as e:
+                logger.warning(f"Error formatting recommendation data: {e}")
+                continue
         
         return render_template('student_recommendations.html', 
                              student=data['student'],
-                             recommendations=recommendations,
-                             similar_students=similar_students)
+                             recommendations=formatted_recommendations)
     except Exception as e:
         logger.error("Error loading student recommendations for %s: %s", student_id, e)
         return render_template('error.html', error=str(e)), 500
@@ -254,15 +300,7 @@ def get_student_info(student_id):
         logger.error(f"Error fetching student info for {student_id}: {e}")
         return jsonify({"success": False, "error": str(e)})
 
-@app.route('/api/optimize-path/<student_id>')
-def optimize_graduation_path(student_id):
-    """Generate optimal graduation path for a student"""
-    try:
-        path_data = degree_optimizer.find_optimal_path(student_id)
-        return jsonify({"success": True, "path": path_data})
-    except Exception as e:
-        logger.error(f"Error optimizing path for {student_id}: {e}")
-        return jsonify({"success": False, "error": str(e)})
+
 
 @app.route('/api/chat', methods=['POST'])
 def chat_with_gemini():
