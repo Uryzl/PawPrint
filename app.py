@@ -301,6 +301,42 @@ def health_check():
             "timestamp": datetime.now().isoformat()
         }), 500
 
+@app.route('/debug/neo4j')
+def debug_neo4j():
+    """Debug endpoint to test Neo4j connection"""
+    try:
+        # Check environment variables
+        env_vars = {
+            'NEO4J_URI': os.getenv('NEO4J_URI'),
+            'NEO4J_USERNAME': os.getenv('NEO4J_USERNAME'),
+            'NEO4J_PASSWORD': '***' if os.getenv('NEO4J_PASSWORD') else None
+        }
+        
+        # Test connection
+        is_connected = neo4j_client.test_connection()
+        has_driver = neo4j_client.driver is not None
+        
+        # Try to get students to see if we get demo data
+        students = neo4j_client.get_all_students(limit=5)
+        using_demo = len(students) > 0 and students[0].get('name') == 'Alice Johnson'
+        
+        return jsonify({
+            "neo4j_status": {
+                "has_driver": has_driver,
+                "connection_test": is_connected,
+                "using_demo_data": using_demo
+            },
+            "environment_variables": env_vars,
+            "sample_students": students[:2],  # First 2 students
+            "student_count": len(students)
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "error": str(e),
+            "neo4j_status": "failed"
+        }), 500
+
 if __name__ == '__main__':
     # Check for environment variables
     if not os.getenv('NEO4J_URI'):
