@@ -1289,6 +1289,7 @@ class Neo4jClient:
         AND EXISTS((c)-[:OFFERED_IN]->(:Term {id: $term}))
         """ if term else "") + """
         
+        WITH DISTINCT c
         RETURN c.id as course_id, c.name as course_name, c.credits as credits,
                c.department as department, c.level as level,
                c.avgDifficulty as avg_difficulty, c.instructionModes as instruction_modes,
@@ -1310,14 +1311,16 @@ class Neo4jClient:
 
         query = """
         MATCH (prereq:Course)-[:PREREQUISITE_FOR]->(c:Course {id: $course_id})
-        RETURN prereq.id as course_id, prereq.name as course_name,
-               prereq.credits as credits, prereq.level as level
+        RETURN DISTINCT prereq.id as course_id, prereq.name as course_name,
+               prereq.credits as credits, prereq.level as level,
+               prereq.department as department
         ORDER BY prereq.level, prereq.name
         """
         
         with self.driver.session() as session:
             result = session.run(query, course_id=course_id)
-            return [dict(record) for record in result]
+            prerequisites = [dict(record) for record in result]
+            return [self._convert_neo4j_types(prereq) for prereq in prerequisites]
 
     def get_courses_unlocked_by(self, course_id: str) -> List[Dict]:
         """Get courses that would be unlocked by taking a specific course"""
@@ -1325,14 +1328,16 @@ class Neo4jClient:
 
         query = """
         MATCH (c:Course {id: $course_id})-[:PREREQUISITE_FOR]->(unlocked:Course)
-        RETURN unlocked.id as course_id, unlocked.name as course_name,
-               unlocked.credits as credits, unlocked.level as level
+        RETURN DISTINCT unlocked.id as course_id, unlocked.name as course_name,
+               unlocked.credits as credits, unlocked.level as level,
+               unlocked.department as department
         ORDER BY unlocked.level, unlocked.name
         """
         
         with self.driver.session() as session:
             result = session.run(query, course_id=course_id)
-            return [dict(record) for record in result]
+            unlocked_courses = [dict(record) for record in result]
+            return [self._convert_neo4j_types(course) for course in unlocked_courses]
 
     def get_similar_students(self, student_id: str, min_similarity: float = 0.3) -> List[Dict]:
         """Find students similar to the given student"""

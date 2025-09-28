@@ -409,6 +409,19 @@ body {
     margin-bottom: 0.35rem;
 }
 
+/* Learning Style Match Indicators */
+.recommendation-item .text-success {
+    font-weight: 600;
+}
+
+.recommendation-item .text-warning {
+    font-weight: 600;
+}
+
+.recommendation-item .text-muted {
+    font-weight: 500;
+}
+
 .peer-insight-item {
     border: 1px solid #e7eaef;
     border-radius: 10px;

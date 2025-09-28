@@ -130,7 +130,9 @@ class GeminiClient:
             if not response.text:
                 return "I'm sorry, I couldn't generate a response. Please try rephrasing your question."
             
-            return response.text.strip()
+            # Clean up any markdown formatting that might slip through
+            cleaned_response = self._clean_markdown_formatting(response.text.strip())
+            return cleaned_response
             
         except NotFound as e:
             logger.error(f"Gemini model not found after retry: {e}")
@@ -156,6 +158,8 @@ class GeminiClient:
         - Encouraging but realistic
         - Based on data when available
         - Focused on academic success and well-being
+        - Written in plain text format WITHOUT any markdown, HTML, or special formatting
+        - Use simple line breaks and spacing for readability instead of markdown syntax
 
         When discussing courses:
         - Consider prerequisites and scheduling
@@ -164,6 +168,8 @@ class GeminiClient:
         - Recommend resources and support services
 
         Always maintain a supportive, professional tone while being direct about challenges and opportunities.
+        
+        IMPORTANT: Respond ONLY in plain text. Do not use markdown formatting, asterisks, hashtags, or any special characters for formatting. Use simple paragraphs and line breaks.
         """
 
         # Add student context if available
@@ -178,6 +184,31 @@ class GeminiClient:
         full_prompt = f"{system_prompt}\n\n{context_section}\n\nStudent Question: {message}\n\nResponse:"
         
         return full_prompt
+
+    def _clean_markdown_formatting(self, text: str) -> str:
+        """Remove common markdown formatting to ensure plain text output"""
+        import re
+        
+        # Remove markdown headers (# ## ###)
+        text = re.sub(r'^#{1,6}\s+', '', text, flags=re.MULTILINE)
+        
+        # Remove bold/italic formatting (**bold** *italic* __bold__ _italic_)
+        text = re.sub(r'\*\*([^*]+)\*\*', r'\1', text)
+        text = re.sub(r'\*([^*]+)\*', r'\1', text)
+        text = re.sub(r'__([^_]+)__', r'\1', text)
+        text = re.sub(r'_([^_]+)_', r'\1', text)
+        
+        # Remove backticks for code
+        text = re.sub(r'`([^`]+)`', r'\1', text)
+        text = re.sub(r'```[^`]*```', '', text, flags=re.DOTALL)
+        
+        # Remove markdown links [text](url)
+        text = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', text)
+        
+        # Clean up bullet points (- * +)
+        text = re.sub(r'^[\-\*\+]\s+', '• ', text, flags=re.MULTILINE)
+        
+        return text.strip()
 
     def _format_student_context(self, context: Dict) -> str:
         """Format student context for the AI prompt"""
@@ -326,10 +357,13 @@ class GeminiClient:
             5. Warning signs to watch for
             
             Keep recommendations practical and actionable.
+            
+            IMPORTANT: Respond in plain text format only. Do not use markdown, asterisks, hashtags, or any special formatting characters.
             """
             
             response = self._generate_with_retry(prompt)
-            return response.text.strip() if response.text else "Unable to generate study recommendations."
+            cleaned_response = self._clean_markdown_formatting(response.text.strip()) if response.text else "Unable to generate study recommendations."
+            return cleaned_response
             
         except NotFound as e:
             logger.error(f"Gemini model not found while generating study recommendations: {e}")
@@ -377,10 +411,13 @@ class GeminiClient:
             5. Whether to take it now or wait
             
             Be specific and actionable in your recommendations.
+            
+            IMPORTANT: Respond in plain text format only. Do not use markdown, asterisks, hashtags, or any special formatting characters.
             """
             
             response = self._generate_with_retry(prompt)
-            return response.text.strip() if response.text else "Unable to analyze course fit."
+            cleaned_response = self._clean_markdown_formatting(response.text.strip()) if response.text else "Unable to analyze course fit."
+            return cleaned_response
             
         except NotFound as e:
             logger.error(f"Gemini model not found while analyzing course fit: {e}")
@@ -436,10 +473,13 @@ class GeminiClient:
             5. Key milestones to track progress
             
             Focus on practical, actionable advice that considers the student's constraints.
+            
+            IMPORTANT: Respond in plain text format only. Do not use markdown, asterisks, hashtags, or any special formatting characters.
             """
             
             response = self._generate_with_retry(prompt)
-            return response.text.strip() if response.text else "Unable to generate timeline advice."
+            cleaned_response = self._clean_markdown_formatting(response.text.strip()) if response.text else "Unable to generate timeline advice."
+            return cleaned_response
             
         except NotFound as e:
             logger.error(f"Gemini model not found while generating timeline advice: {e}")
@@ -488,10 +528,13 @@ class GeminiClient:
             5. Warning signs to avoid based on what didn't work for others
             
             Focus on evidence-based recommendations that the student can implement immediately.
+            
+            IMPORTANT: Respond in plain text format only. Do not use markdown, asterisks, hashtags, or any special formatting characters.
             """
             
             response = self._generate_with_retry(prompt)
-            return response.text.strip() if response.text else "Unable to generate similar student insights."
+            cleaned_response = self._clean_markdown_formatting(response.text.strip()) if response.text else "Unable to generate similar student insights."
+            return cleaned_response
         except NotFound as e:
             logger.error(f"Gemini model not found while generating similar student insights: {e}")
             return "The configured Gemini model isn't available. Please verify your GEMINI_MODEL setting."

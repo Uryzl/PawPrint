@@ -162,23 +162,51 @@ class DegreeOptimizer:
         """Calculate how well a course matches student's learning style"""
         student_style = student.get('learning_style', '')
         course_tags = course.get('tags', [])
+        instruction_modes = course.get('instruction_modes', [])
         
-        # Learning style to course tag mapping
+        # Learning style to course characteristic mapping
         style_mappings = {
-            'Visual': ['visual', 'graphics', 'charts', 'diagrams', 'visualization'],
-            'Auditory': ['discussion', 'lecture', 'presentation', 'verbal'],
-            'Kinesthetic': ['hands-on', 'lab', 'practical', 'project', 'interactive'],
-            'Reading-Writing': ['writing', 'reading', 'research', 'analysis', 'documentation']
+            'Visual': {
+                'tags': ['visual', 'graphics', 'charts', 'diagrams', 'visualization', 'multimedia'],
+                'modes': ['online', 'hybrid'],
+                'base_score': 0.3
+            },
+            'Auditory': {
+                'tags': ['discussion', 'lecture', 'presentation', 'verbal', 'seminar'],
+                'modes': ['in-person', 'live'],
+                'base_score': 0.3
+            },
+            'Kinesthetic': {
+                'tags': ['hands-on', 'lab', 'practical', 'project', 'interactive', 'workshop'],
+                'modes': ['in-person', 'lab'],
+                'base_score': 0.3
+            },
+            'Reading-Writing': {
+                'tags': ['writing', 'reading', 'research', 'analysis', 'documentation', 'essay'],
+                'modes': ['online', 'asynchronous'],
+                'base_score': 0.3
+            }
         }
         
-        preferred_tags = style_mappings.get(student_style, [])
+        if student_style not in style_mappings:
+            return 0.5  # neutral score for unknown learning styles
         
-        # Calculate match score
-        if not course_tags or not preferred_tags:
-            return 0.5  # neutral
+        mapping = style_mappings[student_style]
+        score = mapping['base_score']
         
-        matches = sum(1 for tag in course_tags if any(pref in tag.lower() for pref in preferred_tags))
-        return min(matches / len(course_tags), 1.0)
+        # Check tags match
+        if course_tags:
+            tag_matches = sum(1 for tag in course_tags 
+                            if any(pref.lower() in tag.lower() for pref in mapping['tags']))
+            score += (tag_matches / len(course_tags)) * 0.4
+        
+        # Check instruction modes match
+        if instruction_modes:
+            mode_matches = sum(1 for mode in instruction_modes 
+                             if any(pref.lower() in mode.lower() for pref in mapping['modes']))
+            score += (mode_matches / len(instruction_modes)) * 0.3
+        
+        return min(1.0, score)
 
     def _predict_difficulty(self, course: Dict, context: Dict) -> float:
         """Predict difficulty of a course for this specific student"""
@@ -517,29 +545,59 @@ class DegreeOptimizer:
         try:
             context = self.neo4j.get_student_context(student_id)
             if not context:
+                logger.warning(f"No context found for student {student_id}")
                 return []
             
             available_courses = context['available_courses']
             student = context['student']
+            completed_courses = set(c['course_id'] for c in context['completed_courses'])
+            
+            logger.info(f"Found {len(available_courses)} available courses for student {student_id}")
+            logger.info(f"Student learning style: {student.get('learning_style', 'Unknown')}")
+            
+            # Remove duplicates and already completed courses
+            unique_courses = {}
+            for course in available_courses:
+                course_id = course['course_id']
+                if course_id not in completed_courses and course_id not in unique_courses:
+                    unique_courses[course_id] = course
+            
+            logger.info(f"After deduplication: {len(unique_courses)} unique courses")
             
             # Score and rank available courses
             recommendations = []
-            for course in available_courses[:limit * 2]:  # Get more to filter from
-                score = self._calculate_course_score(course, context, {})
+            for course in unique_courses.values():
+                # Calculate comprehensive score
+                base_score = self._calculate_course_score(course, context, {})
+                style_match = self._calculate_learning_style_match(course, student)
+                difficulty_prediction = self._predict_difficulty(course, context)
+                
+                # Prefer courses that match learning style and are appropriately difficult
+                final_score = base_score + (style_match * 10) - (abs(difficulty_prediction - 3.0) * 2)
+                
+                logger.debug(f"Course {course_id}: base_score={base_score:.2f}, style_match={style_match:.2f}, final_score={final_score:.2f}")
+                
+                # Get prerequisites and unlocked courses
+                prerequisites = self.neo4j.get_course_prerequisites(course['course_id'])
+                unlocks = self.neo4j.get_courses_unlocked_by(course['course_id'])
                 
                 # Add course with enriched data
                 enriched_course = course.copy()
-                enriched_course['recommendation_score'] = score
-                enriched_course['learning_style_match'] = self._calculate_learning_style_match(course, student)
-                enriched_course['difficulty_prediction'] = self._predict_difficulty(course, context)
-                enriched_course['prerequisites'] = self.neo4j.get_course_prerequisites(course['course_id'])
-                enriched_course['unlocks'] = self.neo4j.get_courses_unlocked_by(course['course_id'])
+                enriched_course['recommendation_score'] = final_score
+                enriched_course['learning_style_match'] = style_match
+                enriched_course['difficulty_prediction'] = difficulty_prediction
+                enriched_course['prerequisites'] = prerequisites
+                enriched_course['unlocks'] = unlocks
                 
                 recommendations.append(enriched_course)
             
             # Sort by recommendation score and return top results
             recommendations.sort(key=lambda x: x['recommendation_score'], reverse=True)
-            return recommendations[:limit]
+            
+            top_recommendations = recommendations[:limit]
+            logger.info(f"Returning top {len(top_recommendations)} recommendations for student {student_id}")
+            
+            return top_recommendations
             
         except Exception as e:
             logger.error(f"Error getting course recommendations for {student_id}: {e}")

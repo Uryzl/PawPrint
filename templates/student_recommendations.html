@@ -47,7 +47,15 @@
                                                     </div>
                                                     <div class="text-end">
                                                         <span class="badge bg-dark text-white recommendation-score-badge">Score {{ rec.score_display or 0 }}</span>
-                                                        <div class="text-muted small">Style match {{ rec.match_percent or 0 }}%</div>
+                                                        <div class="text-muted small">
+                                                            {% if rec.match_percent >= 70 %}
+                                                                <span class="text-success">Great match {{ rec.match_percent or 0 }}%</span>
+                                                            {% elif rec.match_percent >= 50 %}
+                                                                <span class="text-warning">Good match {{ rec.match_percent or 0 }}%</span>
+                                                            {% else %}
+                                                                <span class="text-muted">Style match {{ rec.match_percent or 0 }}%</span>
+                                                            {% endif %}
+                                                        </div>
                                                     </div>
                                                 </div>
                                                 <div class="row small text-muted">
