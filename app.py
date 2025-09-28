@@ -288,7 +288,9 @@ def student_chat(student_id):
         if not data:
             return render_template('error.html', error="Student not found"), 404
         
-        return render_template('student_chat.html', student=data['student'])
+        return render_template('student_chat.html', 
+                             student=data['student'],
+                             degree=data.get('degree'))
     except Exception as e:
         logger.error("Error loading student chat for %s: %s", student_id, e)
         return render_template('error.html', error=str(e)), 500
