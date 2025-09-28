@@ -526,7 +526,7 @@ document.addEventListener('DOMContentLoaded', function() {
         modal.show();
         
         // Fetch course schedule details first
-        fetch(`/api/course/${courseId}/schedule`)
+        fetch(`/api/course/${courseId}`)
         .then(r => r.json())
         .then(scheduleData => {
             // Get the first instructor's ID for compatibility analysis
@@ -633,6 +633,71 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
         });
     };
+    
+    // Load similar students asynchronously for better performance
+    function loadSimilarStudentsAsync() {
+        const container = document.getElementById('similarStudentsContainer');
+        if (!container) return;
+        
+        fetch(`/api/similar-students/{{ student.id }}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.similar_students) {
+                    renderSimilarStudents(data.similar_students);
+                } else {
+                    container.innerHTML = '<p class="text-muted">No similar students found</p>';
+                }
+            })
+            .catch(error => {
+                console.error('Error loading similar students:', error);
+                container.innerHTML = '<p class="text-warning">Unable to load similar students</p>';
+            });
+    }
+    
+    function renderSimilarStudents(students) {
+        const container = document.getElementById('similarStudentsContainer');
+        if (!students || students.length === 0) {
+            container.innerHTML = '<p class="text-muted">No similar students found</p>';
+            return;
+        }
+        
+        let html = '';
+        students.forEach((student, index) => {
+            const isExtra = index >= 10;
+            html += `
+                <div class="similar-student-item mb-2 ${isExtra ? 'similar-student-extra' : ''}" ${isExtra ? 'style="display: none;"' : ''}>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>${student.name}</strong>
+                            <br><small class="text-muted">${student.learning_style} • ${Math.round(student.similarity * 100)}% similar</small>
+                        </div>
+                        <small class="text-success">${student.courses_completed || 0} courses</small>
+                    </div>
+                </div>
+            `;
+            if (index < students.length - 1 && index < 9) {
+                html += '<hr class="my-2">';
+            } else if (isExtra && index < students.length - 1) {
+                html += '<hr class="my-2 similar-student-extra" style="display: none;">';
+            }
+        });
+        
+        if (students.length > 10) {
+            html += `
+                <div class="text-center mt-3">
+                    <button class="btn btn-outline-primary btn-sm similar-students-toggle" onclick="toggleSimilarStudents()">
+                        <span id="similarStudentsToggleText">Show ${students.length - 10} more students</span>
+                        <i id="similarStudentsToggleIcon" class="fas fa-chevron-down ms-2"></i>
+                    </button>
+                </div>
+            `;
+        }
+        
+        container.innerHTML = html;
+    }
+    
+    // Load similar students when page is ready
+    loadSimilarStudentsAsync();
     
     // Toggle similar students visibility
     window.toggleSimilarStudents = function() {
