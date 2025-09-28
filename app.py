@@ -233,6 +233,15 @@ def student_recommendations(student_id):
                     names.append(name)
             total = len(names)
             return names[:limit], total
+        
+        def sample_course_codes(items, limit=3):
+            codes = []
+            for item in items or []:
+                code = item.get('course_id') or item.get('id') or item.get('course_code')
+                if code:
+                    codes.append(code)
+            total = len(codes)
+            return codes[:limit], total
 
         formatted_recommendations = []
         for rec in recommendations:
@@ -243,11 +252,11 @@ def student_recommendations(student_id):
                 formatted['match_percent'] = int(round(ensure_number(rec.get('learning_style_match'), 0) * 100))
                 formatted['instruction_modes_display'] = format_list(rec.get('instruction_modes'), "Not specified")
                 formatted['tags_display'] = format_list(rec.get('tags'), "None")
-                prereq_names, prereq_total = sample_course_names(rec.get('prerequisites'))
-                formatted['prerequisite_names'] = prereq_names
+                prereq_codes, prereq_total = sample_course_codes(rec.get('prerequisites'))
+                formatted['prerequisite_names'] = prereq_codes  # Using codes now but keeping same field name for template compatibility
                 formatted['prerequisite_total'] = prereq_total
-                unlock_names, unlock_total = sample_course_names(rec.get('unlocks'))
-                formatted['unlock_names'] = unlock_names
+                unlock_codes, unlock_total = sample_course_codes(rec.get('unlocks'))
+                formatted['unlock_names'] = unlock_codes  # Using codes now but keeping same field name for template compatibility
                 formatted['unlock_total'] = unlock_total
                 formatted['credits_display'] = int(ensure_number(rec.get('credits'), 0))
                 formatted['level_display'] = rec.get('level') or "N/A"
