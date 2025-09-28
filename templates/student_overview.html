@@ -571,20 +571,32 @@ document.addEventListener('DOMContentLoaded', function() {
         fetch(`/api/course/${courseId}`)
         .then(r => r.json())
         .then(scheduleData => {
-            // Get the first instructor's ID for compatibility analysis
-            const instructorId = scheduleData.instructors?.[0]?.faculty?.id || 'F01030';
+            // Fetch compatibility data for ALL instructors individually
+            const compatibilityPromises = scheduleData.instructors?.map(instructor => 
+                fetch(`/api/compatibility/${instructor.faculty?.id || 'F01030'}/{{ student.learning_style or student.learningStyle or "Visual" }}`)
+                    .then(r => r.json())
+                    .then(compatibility => ({
+                        instructorId: instructor.faculty?.id,
+                        compatibility: compatibility
+                    }))
+                    .catch(error => ({
+                        instructorId: instructor.faculty?.id,
+                        compatibility: { compatibility_score: 0.5, notes: 'Error calculating compatibility' }
+                    }))
+            ) || [];
             
-            // Fetch compatibility data using the actual instructor
             return Promise.all([
-                Promise.resolve(scheduleData),
-                fetch(`/api/compatibility/${instructorId}/{{ student.learning_style or student.learningStyle or "Visual" }}`).then(r => r.json())
+                Promise.resolve(scheduleData),  
+                Promise.all(compatibilityPromises)
             ]);
         })
-        .then(([scheduleData, compatibilityData]) => {
+        .then(([scheduleData, compatibilityDataArray]) => {
             let content = `
                 <div class="course-details">
-                    <h6>${scheduleData.course?.name || courseId}</h6>
-                    <p class="text-muted">${scheduleData.course?.department || 'Unknown Department'}</p>
+                    <h6>${scheduleData.name || courseId}</h6>
+                    <p class="text-muted">${scheduleData.department || 'Unknown Department'} • ${scheduleData.credits || 3} credits</p>
+                    <p>${scheduleData.description || 'Course description not available.'}</p>
+                </div>
             `;
             
             // Faculty information
@@ -595,8 +607,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         <div class="row">
                 `;
                 
-                scheduleData.instructors.forEach(instructor => {
-                    const compatibility = compatibilityData.compatibility_score || 0.5;
+                scheduleData.instructors.forEach((instructor, index) => {
+                    // Get individual compatibility for this specific instructor
+                    const instructorCompatibility = compatibilityDataArray[index] || { compatibility: { compatibility_score: 0.5, notes: 'No compatibility data' } };
+                    const compatibility = instructorCompatibility.compatibility.compatibility_score || 0.5;
                     const compatibilityClass = compatibility >= 0.8 ? 'success' : compatibility >= 0.6 ? 'warning' : 'secondary';
                     
                     content += `
@@ -618,7 +632,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                         <span class="badge bg-${compatibilityClass}">
                                             ${Math.round(compatibility * 100)}% Match
                                         </span>
-                                        <small class="d-block text-muted">${compatibilityData.notes || 'Compatibility analysis'}</small>
+                                        <small class="d-block text-muted">${instructorCompatibility.compatibility.notes || 'Compatibility analysis'}</small>
                                     </div>
                                 </div>
                             </div>
