@@ -22,8 +22,14 @@
                         <h5><i class="fas fa-user me-2"></i>{{ student.name }}</h5>
                     </div>
                     <div class="card-body">
-                        <p><strong>Degree:</strong><br>{{ student.degree_name }}</p>
-                        <p><strong>Learning Style:</strong><br>{{ student.learning_style }}</p>
+                        <p><strong>Degree:</strong><br>
+                            {% if degree %}
+                                {{ degree.name }}
+                            {% else %}
+                                {{ student.degree_name or "Not specified" }}
+                            {% endif %}
+                        </p>
+                        <p><strong>Learning Style:</strong><br>{{ student.learning_style or student.learningStyle or "Not specified" }}</p>
                     </div>
                 </div>
 
