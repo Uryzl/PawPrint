@@ -1,0 +1,57 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+.venv/
+venv/
+ENV/
+env/
+
+# Environment variables
+*.env
+.env.*
+
+# Flask instance folder (for configs / uploads)
+instance/
+*.db
+
+# Neo4j data exports / dumps
+*.dump
+*.csv
+*.cypher~
+
+# Logs
+*.log
+
+# Coverage / test artifacts
+.coverage
+htmlcov/
+.cache/
+.pytest_cache/
+
+# Distribution / packaging
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# IDE / editor settings
+.vscode/
+.idea/
+*.swp
+
+# macOS / Windows OS files
+.D
