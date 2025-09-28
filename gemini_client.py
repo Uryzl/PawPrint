@@ -153,27 +153,30 @@ class GeminiClient:
         """Build comprehensive prompt for academic advising"""
         
         # Base system prompt
-        system_prompt = """You are an expert academic advisor at UMBC (University of Maryland, Baltimore County). 
-        You specialize in helping students optimize their degree paths, improve academic performance, and make informed decisions about their education.
+        system_prompt = """You are an expert academic advisor at UMBC. Provide helpful, well-structured answers that are thorough but not overwhelming.
 
-        Your responses should be:
-        - Personalized and specific to the student's situation
-        - Practical and actionable
-        - Encouraging but realistic
-        - Based on data when available
-        - Focused on academic success and well-being
-        - Written in plain text format WITHOUT any markdown, HTML, or special formatting
-        - Use simple line breaks and spacing for readability instead of markdown syntax
+        RESPONSE GUIDELINES:
+        - Keep responses focused and practical (4-8 sentences)
+        - Use bullet points for multiple recommendations (use • not *)
+        - Include brief explanations for your advice
+        - No markdown formatting - plain text only
+        - Be encouraging but realistic about challenges
 
-        When discussing courses:
-        - Consider prerequisites and scheduling
-        - Account for course difficulty and student workload
-        - Suggest study strategies based on learning styles
-        - Recommend resources and support services
+        STRUCTURE YOUR RESPONSES:
+        1. Brief assessment of the situation
+        2. 2-4 specific, actionable recommendations with bullet points
+        3. Short explanation of why these steps will help
 
-        Always maintain a supportive, professional tone while being direct about challenges and opportunities.
-        
-        IMPORTANT: Respond ONLY in plain text. Do not use markdown formatting, asterisks, hashtags, or any special characters for formatting. Use simple paragraphs and line breaks.
+        EXAMPLE FORMAT:
+        Based on your [situation], here's what I recommend:
+
+        • [Key recommendation with brief reason]
+        • [Second important action]
+        • [Third suggestion if relevant]
+
+        [1-2 sentences explaining the benefit or next steps]
+
+        Provide enough detail to be genuinely helpful while staying focused and actionable.
         """
 
         # Add student context if available
@@ -184,19 +187,19 @@ class GeminiClient:
         if additional_context:
             context_section += self._format_additional_context(additional_context)
 
-        # Combine all parts
-        full_prompt = f"{system_prompt}\n\n{context_section}\n\nStudent Question: {message}\n\nResponse:"
+        # Combine all parts with balanced length guidance
+        full_prompt = f"{system_prompt}\n\n{context_section}\n\nStudent Question: {message}\n\nProvide a helpful response (aim for 400-600 characters). Be thorough but focused:\n\nResponse:"
         
         return full_prompt
 
     def _clean_markdown_formatting(self, text: str) -> str:
-        """Remove common markdown formatting to ensure plain text output"""
+        """Remove markdown formatting and ensure clean, formatted output"""
         import re
         
         # Remove markdown headers (# ## ###)
         text = re.sub(r'^#{1,6}\s+', '', text, flags=re.MULTILINE)
         
-        # Remove bold/italic formatting (**bold** *italic* __bold__ _italic_)
+        # Remove bold/italic formatting but keep the emphasis visible
         text = re.sub(r'\*\*([^*]+)\*\*', r'\1', text)
         text = re.sub(r'\*([^*]+)\*', r'\1', text)
         text = re.sub(r'__([^_]+)__', r'\1', text)
@@ -209,94 +212,76 @@ class GeminiClient:
         # Remove markdown links [text](url)
         text = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', text)
         
-        # Clean up bullet points (- * +)
+        # Standardize bullet points (- * + to •)
         text = re.sub(r'^[\-\*\+]\s+', '• ', text, flags=re.MULTILINE)
+        
+        # Add proper spacing around bullet points for readability
+        text = re.sub(r'\n•', '\n\n•', text)
+        
+        # Clean up multiple newlines
+        text = re.sub(r'\n{3,}', '\n\n', text)
         
         return text.strip()
 
     def _format_student_context(self, context: Dict) -> str:
-        """Format student context for the AI prompt"""
+        """Format student context for the AI prompt - BALANCED VERSION"""
         student = context.get('student', {})
         completed_courses = context.get('completed_courses', [])
+        enrolled_courses = context.get('enrolled_courses', [])
         degree_info = context.get('degree_info', {})
-        available_courses = context.get('available_courses', [])
-        similar_students = context.get('similar_students', [])
         
-        context_text = "=== STUDENT PROFILE ===\n"
-        context_text += f"Name: {student.get('name', 'Student')}\n"
-        context_text += f"Learning Style: {student.get('learning_style', 'Unknown')}\n"
-        context_text += f"Degree Program: {degree_info.get('degree_name', 'Unknown')}\n"
-        context_text += f"Expected Graduation: {student.get('expected_graduation', 'Unknown')}\n"
-        context_text += f"Preferred Course Load: {student.get('preferred_course_load', 'Unknown')} courses per term\n"
-        context_text += f"Preferred Pace: {student.get('preferred_pace', 'Unknown')}\n"
-        context_text += f"Work Hours/Week: {student.get('work_hours_per_week', 0)}\n"
-        context_text += f"Preferred Instruction: {student.get('preferred_instruction_mode', 'Unknown')}\n"
+        context_text = "STUDENT PROFILE:\n"
+        context_text += f"• {student.get('learning_style', 'Unknown')} learner\n"
+        context_text += f"• {degree_info.get('degree_name', 'Unknown')} major\n"
         
-        # Academic progress
+        # Add current enrolled courses - this is key for current course questions!
+        if enrolled_courses:
+            context_text += f"• Currently enrolled in {len(enrolled_courses)} courses:\n"
+            for course in enrolled_courses[:4]:  # Show up to 4 current courses
+                course_name = course.get('course_name', course.get('name', 'Unknown'))
+                course_id = course.get('course_id', course.get('id', 'Unknown'))
+                context_text += f"  - {course_id}: {course_name}\n"
+        
         if completed_courses:
-            context_text += f"\n=== ACADEMIC PROGRESS ===\n"
-            context_text += f"Completed Courses: {len(completed_courses)}\n"
-            
-            # Calculate GPA
             gpa = self._calculate_gpa(completed_courses)
-            context_text += f"Current GPA: {gpa}\n"
+            context_text += f"• {len(completed_courses)} courses completed, GPA: {gpa}\n"
             
-            # Recent courses (last 3)
+            # Add recent performance context
             recent_courses = sorted(completed_courses, 
-                                  key=lambda x: x.get('term', ''), reverse=True)[:3]
-            context_text += "Recent Courses:\n"
-            for course in recent_courses:
-                context_text += f"  - {course.get('course_name', 'Unknown')} ({course.get('grade', 'N/A')})\n"
+                                  key=lambda x: x.get('completion_term', x.get('term', '')), reverse=True)[:2]
+            if recent_courses:
+                context_text += f"• Recent courses: "
+                recent_info = []
+                for course in recent_courses:
+                    course_name = course.get('course_name', course.get('name', 'Unknown'))[:15]  # Truncate long names
+                    grade = course.get('grade', 'N/A')
+                    recent_info.append(f"{course_name} ({grade})")
+                context_text += ", ".join(recent_info)
+        else:
+            context_text += "• New student, no completed courses yet"
         
-        # Degree progress
-        if degree_info and degree_info.get('requirements'):
-            context_text += f"\n=== DEGREE PROGRESS ===\n"
-            total_required = degree_info.get('total_credits_required', 0)
-            total_completed = degree_info.get('total_credits_completed', 0)
-            completion_pct = degree_info.get('completion_percentage', 0)
-            context_text += f"Credits: {total_completed}/{total_required} ({completion_pct:.1f}% complete)\n"
-        
-        # Available courses (sample)
-        if available_courses:
-            context_text += f"\n=== AVAILABLE COURSES (Sample) ===\n"
-            for course in available_courses[:5]:  # Show first 5
-                context_text += f"  - {course.get('course_name', 'Unknown')} "
-                context_text += f"({course.get('level', 'N/A')}, {course.get('credits', 3)} credits)\n"
-        
-        # Similar students insights
-        if similar_students:
-            context_text += f"\n=== PEER INSIGHTS ===\n"
-            high_performers = [s for s in similar_students if s.get('avg_gpa', 0) > 3.5]
-            if high_performers:
-                context_text += f"Found {len(high_performers)} high-performing similar students for comparison\n"
+        # Add course load preference if available
+        if student.get('preferred_course_load'):
+            context_text += f"\n• Prefers {student.get('preferred_course_load')} courses per term"
         
         return context_text
 
     def _format_additional_context(self, context: Dict) -> str:
-        """Format additional context (course recommendations, path analysis, etc.)"""
+        """Format additional context - BALANCED VERSION"""
         context_text = ""
         
         if context.get('optimal_sequence'):
-            context_text += "\n=== RECOMMENDED COURSE SEQUENCE ===\n"
-            courses = context['optimal_sequence'][:8]  # First 8 courses
+            courses = context['optimal_sequence'][:4]  # Show 4 recommended courses
+            context_text += "\nRECOMMENDED COURSES:\n"
             for i, course in enumerate(courses, 1):
-                context_text += f"{i}. {course.get('course_name', 'Unknown')} "
-                context_text += f"(Difficulty: {course.get('difficulty_prediction', 0):.1f}/5.0)\n"
-        
-        if context.get('term_plan'):
-            context_text += f"\n=== GRADUATION TIMELINE ===\n"
-            context_text += f"Estimated terms to graduation: {len(context['term_plan'])}\n"
-            
-            # Show next 2 terms
-            for term in context['term_plan'][:2]:
-                context_text += f"Term {term.get('term_number', 0)} ({term.get('term_type', 'Unknown')}):\n"
-                for course in term.get('courses', []):
-                    context_text += f"  - {course.get('course_name', 'Unknown')}\n"
+                course_name = course.get('course_name', 'Unknown')
+                difficulty = course.get('difficulty_prediction', 0)
+                context_text += f"• {course_name} (Difficulty: {difficulty:.1f}/5)\n"
         
         if context.get('risk_factors'):
-            context_text += f"\n=== IDENTIFIED RISKS ===\n"
-            for risk in context['risk_factors']:
-                context_text += f"- {risk.get('type', 'Unknown')}: {risk.get('description', '')}\n"
+            context_text += "\nPOTENTIAL CHALLENGES:\n"
+            for risk in context['risk_factors'][:2]:  # Show top 2 risks
+                context_text += f"• {risk.get('description', 'Unknown risk')}\n"
         
         return context_text
 

@@ -1424,13 +1424,19 @@ class Neo4jClient:
         available = self.get_available_courses(student_id)
         similar = self.get_similar_students(student_id)
         
+        # You can add more data here if needed:
+        # optimal_sequence = self.get_optimal_course_sequence(student_id)
+        # degree_progress = self.get_degree_requirements_progress(student_id)
+        
         return {
             "student": student,
             "completed_courses": completed,
-            "enrolled_courses": enrolled,
+            "enrolled_courses": enrolled,  # Current courses already included!
             "degree_info": degree,
             "available_courses": available,
             "similar_students": similar
+            # "optimal_sequence": optimal_sequence,  # Uncomment to add course recommendations
+            # "degree_progress": degree_progress     # Uncomment to add detailed progress
         }
 
     def get_optimal_course_sequence(self, student_id: str) -> List[Dict]:
