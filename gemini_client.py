@@ -9,8 +9,12 @@ import logging
 from typing import Dict, Optional, List
 import google.generativeai as genai
 from google.api_core.exceptions import NotFound, GoogleAPIError
+from dotenv import load_dotenv
 
-DEFAULT_MODEL = genai.GenerativeModel("models/gemini-2.5-flash")
+# Load environment variables from .env file
+load_dotenv()
+
+DEFAULT_MODEL = "models/gemini-2.5-flash"
 
 logger = logging.getLogger(__name__)
 
