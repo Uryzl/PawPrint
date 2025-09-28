@@ -207,11 +207,18 @@
                                         <div class="course-item-small">
                                             <div><strong>{{ course.id or course.course_id }}</strong></div>
                                             <div><small>{{ course.name or course.course_name }}</small></div>
-                                            {% if course.grade %}
-                                            <div class="course-grade">
-                                                <span class="badge bg-success">{{ course.grade }}</span>
+                                            <div class="course-completion-info">
+                                                {% if course.term or course.completion_term %}
+                                                <span class="course-term">{{ (course.term or course.completion_term)|abbreviate_term }}</span>
+                                                {% else %}
+                                                <span></span>
+                                                {% endif %}
+                                                {% if course.grade %}
+                                                <span class="course-grade">
+                                                    <span class="badge bg-success">{{ course.grade }}</span>
+                                                </span>
+                                                {% endif %}
                                             </div>
-                                            {% endif %}
                                         </div>
                                     </div>
                                     {% endfor %}
@@ -222,11 +229,18 @@
                                         <div class="course-item-small">
                                             <div><strong>{{ course.id or course.course_id }}</strong></div>
                                             <div><small>{{ course.name or course.course_name }}</small></div>
-                                            {% if course.grade %}
-                                            <div class="course-grade">
-                                                <span class="badge bg-success">{{ course.grade }}</span>
+                                            <div class="course-completion-info">
+                                                {% if course.term or course.completion_term %}
+                                                <span class="course-term">{{ (course.term or course.completion_term)|abbreviate_term }}</span>
+                                                {% else %}
+                                                <span></span>
+                                                {% endif %}
+                                                {% if course.grade %}
+                                                <span class="course-grade">
+                                                    <span class="badge bg-success">{{ course.grade }}</span>
+                                                </span>
+                                                {% endif %}
                                             </div>
-                                            {% endif %}
                                         </div>
                                     </div>
                                     {% endfor %}
@@ -463,6 +477,24 @@
     
     .similar-students-toggle i {
         transition: transform 0.2s ease;
+    }
+    
+    .course-term {
+        font-size: 0.75rem;
+        color: #6c757d;
+        font-weight: 500;
+    }
+    
+    .course-item-small {
+        position: relative;
+    }
+    
+    .course-completion-info {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 4px;
+        gap: 8px;
     }
 </style>
 {% endblock %}

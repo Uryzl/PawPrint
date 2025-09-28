@@ -1666,10 +1666,12 @@ class Neo4jClient:
                     if degree_record:
                         degree_data = self._convert_neo4j_types(dict(degree_record['d']))
                     
-                    # Get similar students
+                    # Get similar students - use broader search including learning styles
                     similar_query = """
-                    MATCH (s:Student {id: $student_id})-[sim:SIMILAR_PERFORMANCE]->(similar:Student)
-                    RETURN similar, sim
+                    MATCH (s:Student {id: $student_id})-[sim:SIMILAR_PERFORMANCE|SIMILAR_LEARNING_STYLE]->(similar:Student)
+                    RETURN similar, sim, type(sim) as relationship_type
+                    ORDER BY sim.similarity DESC
+                    LIMIT 10
                     """
                     similar_result = session.run(similar_query, student_id=student_id)
                     for sim_record in similar_result:
@@ -1678,6 +1680,7 @@ class Neo4jClient:
                         similar_students.append({
                             'student': student_info,
                             'similarity': rel_data.get('similarity'),
+                            'similarity_type': sim_record['relationship_type'],
                             'common_courses': rel_data.get('courses', [])
                         })
                     
