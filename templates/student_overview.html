@@ -54,7 +54,7 @@
                         {% endif %}
                         <div class="student-info-item">
                             <span class="student-info-label">Expected Graduation</span>
-                            <span class="student-info-value">{{ student.expected_graduation }}</span>
+                            <span class="student-info-value">{{ student.expected_graduation or student.expectedGraduation or 'Not specified' }}</span>
                         </div>
                         <div class="student-info-item">
                             <span class="student-info-label">Preferred Load</span>
@@ -298,7 +298,6 @@
                 </div>
                 
                 <!-- Degree Requirements Section -->
-                {% if requirement_groups %}
                 <div class="row mt-3">
                     <div class="col-12">
                         <div class="card">
@@ -306,32 +305,50 @@
                                 <h5><i class="fas fa-clipboard-list me-2"></i>Degree Requirements</h5>
                             </div>
                             <div class="card-body">
-                                {% for req_group in requirement_groups %}
-                                <div class="requirement-group mb-3">
-                                    <h6 class="text-primary">{{ req_group.name }}</h6>
-                                    <p class="text-muted small">{{ req_group.description }}</p>
-                                    <div class="row">
-                                        <div class="col-md-6">
-                                            <small class="text-info">
-                                                <i class="fas fa-graduation-cap me-1"></i>
-                                                Minimum {{ req_group.minimumCourses }} course(s)
-                                            </small>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <small class="text-info">
-                                                <i class="fas fa-star me-1"></i>
-                                                Minimum {{ req_group.minimumCredits }} credit(s)
-                                            </small>
+                                {% if requirement_groups %}
+                                    {% for req_group in requirement_groups %}
+                                    <div class="requirement-group mb-3">
+                                        <h6 class="text-primary">{{ req_group.name or 'Requirement Group' }}</h6>
+                                        <p class="text-muted small">{{ req_group.description or 'No description available' }}</p>
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <small class="text-info">
+                                                    <i class="fas fa-graduation-cap me-1"></i>
+                                                    Minimum {{ req_group.minimumCourses or req_group.minimum_courses or req_group.courses_required or req_group.requiredCourses or 1 }} course(s)
+                                                </small>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <small class="text-info">
+                                                    <i class="fas fa-star me-1"></i>
+                                                    Minimum {{ req_group.minimumCredits or req_group.minimum_credits or req_group.required_credits or req_group.credits_required or req_group.creditsRequired or 3 }} credit(s)
+                                                </small>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                                {% if not loop.last %}<hr>{% endif %}
-                                {% endfor %}
+                                    {% if not loop.last %}<hr>{% endif %}
+                                    {% endfor %}
+                                {% else %}
+                                    <div class="text-center text-muted py-4">
+                                        <i class="fas fa-info-circle mb-2"></i>
+                                        <p>Degree requirements information is not available for this student.</p>
+                                        <small>This may be because the student's degree program has not been fully configured.</small>
+                                        <!-- Debug info (remove in production) -->
+                                        <div class="mt-2 small">
+                                            <details>
+                                                <summary>Debug Info</summary>
+                                                <div class="text-start mt-2">
+                                                    <strong>Requirement groups count:</strong> {{ requirement_groups|length if requirement_groups else 'None' }}<br>
+                                                    <strong>Student ID:</strong> {{ student.id }}<br>
+                                                    <strong>Expected graduation:</strong> {{ student.expected_graduation or student.expectedGraduation or 'Not set' }}
+                                                </div>
+                                            </details>
+                                        </div>
+                                    </div>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
                 </div>
-                {% endif %}
                 
                 <!-- Similar Students Section -->
                 {% if similar_students %}
@@ -519,7 +536,7 @@ document.addEventListener('DOMContentLoaded', function() {
         modal.show();
         
         // Fetch course schedule details first
-        fetch(`/api/course/${courseId}/schedule`)
+        fetch(`/api/course/${courseId}`)
         .then(r => r.json())
         .then(scheduleData => {
             // Get the first instructor's ID for compatibility analysis
@@ -626,6 +643,71 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
         });
     };
+    
+    // Load similar students asynchronously for better performance
+    function loadSimilarStudentsAsync() {
+        const container = document.getElementById('similarStudentsContainer');
+        if (!container) return;
+        
+        fetch(`/api/similar-students/{{ student.id }}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.similar_students) {
+                    renderSimilarStudents(data.similar_students);
+                } else {
+                    container.innerHTML = '<p class="text-muted">No similar students found</p>';
+                }
+            })
+            .catch(error => {
+                console.error('Error loading similar students:', error);
+                container.innerHTML = '<p class="text-warning">Unable to load similar students</p>';
+            });
+    }
+    
+    function renderSimilarStudents(students) {
+        const container = document.getElementById('similarStudentsContainer');
+        if (!students || students.length === 0) {
+            container.innerHTML = '<p class="text-muted">No similar students found</p>';
+            return;
+        }
+        
+        let html = '';
+        students.forEach((student, index) => {
+            const isExtra = index >= 10;
+            html += `
+                <div class="similar-student-item mb-2 ${isExtra ? 'similar-student-extra' : ''}" ${isExtra ? 'style="display: none;"' : ''}>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>${student.name}</strong>
+                            <br><small class="text-muted">${student.learning_style} • ${Math.round(student.similarity * 100)}% similar</small>
+                        </div>
+                        <small class="text-success">${student.courses_completed || 0} courses</small>
+                    </div>
+                </div>
+            `;
+            if (index < students.length - 1 && index < 9) {
+                html += '<hr class="my-2">';
+            } else if (isExtra && index < students.length - 1) {
+                html += '<hr class="my-2 similar-student-extra" style="display: none;">';
+            }
+        });
+        
+        if (students.length > 10) {
+            html += `
+                <div class="text-center mt-3">
+                    <button class="btn btn-outline-primary btn-sm similar-students-toggle" onclick="toggleSimilarStudents()">
+                        <span id="similarStudentsToggleText">Show ${students.length - 10} more students</span>
+                        <i id="similarStudentsToggleIcon" class="fas fa-chevron-down ms-2"></i>
+                    </button>
+                </div>
+            `;
+        }
+        
+        container.innerHTML = html;
+    }
+    
+    // Load similar students when page is ready
+    loadSimilarStudentsAsync();
     
     // Toggle similar students visibility
     window.toggleSimilarStudents = function() {
