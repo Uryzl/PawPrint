@@ -64,8 +64,122 @@ else:
 
 @app.route('/')
 def index():
-    """Main page with student search and degree planning interface"""
-    return render_template('index.html')
+    """Home page with student search"""
+    return render_template('home.html')
+
+@app.route('/students')
+def students():
+    """Student listing page with search"""
+    try:
+        search = request.args.get('search', '')
+        if not neo4j_client:
+            students = []
+        else:
+            students = neo4j_client.search_students(search) if search else neo4j_client.get_all_students()
+        return render_template('students.html', students=students, search=search)
+    except Exception as e:
+        logger.error(f"Error loading students page: {e}")
+        return render_template('students.html', students=[], search='', error=str(e))
+
+@app.route('/student/<student_id>')
+def student_overview(student_id):
+    """Student overview page - degree progress, timeline, risk factors"""
+    try:
+        if not neo4j_client:
+            return render_template('error.html', error="Neo4j not connected"), 500
+            
+        student = neo4j_client.get_student_details(student_id)
+        if not student:
+            return render_template('error.html', error="Student not found"), 404
+        
+        # Get course history and degree progress
+        completed_courses = neo4j_client.get_student_completed_courses(student_id)
+        enrolled_courses = neo4j_client.get_student_enrolled_courses(student_id)
+        degree_info = neo4j_client.get_student_degree(student_id)
+        
+        return render_template('student_overview.html', 
+                             student=student,
+                             completed_courses=completed_courses,
+                             enrolled_courses=enrolled_courses,
+                             degree_info=degree_info)
+    except Exception as e:
+        logger.error(f"Error loading student overview for {student_id}: {e}")
+        return render_template('error.html', error=str(e)), 500
+
+@app.route('/student/<student_id>/pathway')
+def student_pathway(student_id):
+    """Optimal graduation pathway page"""
+    try:
+        if not neo4j_client:
+            return render_template('error.html', error="Neo4j not connected"), 500
+            
+        student = neo4j_client.get_student_details(student_id)
+        if not student:
+            return render_template('error.html', error="Student not found"), 404
+        
+        # Get existing optimized path if available
+        optimized_path = None
+        if degree_optimizer:
+            try:
+                optimized_path = degree_optimizer.find_optimal_path(student_id)
+            except Exception as e:
+                logger.warning(f"Could not generate optimal path: {e}")
+        
+        return render_template('student_pathway.html', 
+                             student=student,
+                             optimized_path=optimized_path)
+    except Exception as e:
+        logger.error(f"Error loading student pathway for {student_id}: {e}")
+        return render_template('error.html', error=str(e)), 500
+
+@app.route('/student/<student_id>/recommendations')
+def student_recommendations(student_id):
+    """AI-powered course recommendations page"""
+    try:
+        if not neo4j_client:
+            return render_template('error.html', error="Neo4j not connected"), 500
+            
+        student = neo4j_client.get_student_details(student_id)
+        if not student:
+            return render_template('error.html', error="Student not found"), 404
+        
+        # Get recommendations
+        recommendations = []
+        similar_students = []
+        if degree_optimizer:
+            try:
+                recommendations = degree_optimizer.get_course_recommendations(student_id)
+            except Exception as e:
+                logger.warning(f"Could not get recommendations: {e}")
+        
+        try:
+            similar_students = neo4j_client.get_similar_students(student_id)
+        except Exception as e:
+            logger.warning(f"Could not get similar students: {e}")
+        
+        return render_template('student_recommendations.html', 
+                             student=student,
+                             recommendations=recommendations,
+                             similar_students=similar_students)
+    except Exception as e:
+        logger.error(f"Error loading student recommendations for {student_id}: {e}")
+        return render_template('error.html', error=str(e)), 500
+
+@app.route('/student/<student_id>/chat')
+def student_chat(student_id):
+    """AI assistant chat interface"""
+    try:
+        if not neo4j_client:
+            return render_template('error.html', error="Neo4j not connected"), 500
+            
+        student = neo4j_client.get_student_details(student_id)
+        if not student:
+            return render_template('error.html', error="Student not found"), 404
+        
+        return render_template('student_chat.html', student=student)
+    except Exception as e:
+        logger.error(f"Error loading student chat for {student_id}: {e}")
+        return render_template('error.html', error=str(e)), 500
 
 @app.route('/api/students')
 def get_students():

@@ -119,6 +119,9 @@ body {
 
 .student-info-value {
     color: #6c757d;
+    text-align: right;
+    flex: 1;
+    margin-left: 1rem;
 }
 
 /* Cards */
@@ -533,7 +536,7 @@ body {
 
 .nav-tabs .nav-link.active {
     color: #000000 !important;
-    border-color: #dee2e6 #dee2e6 var(--primary-color) !important;
+    border-color: #dee2e6 #dee2e6 #000000 !important;
 }
 
 .nav-tabs .nav-link {
@@ -542,4 +545,110 @@ body {
 
 .nav-tabs .nav-link:hover {
     color: #000000 !important;
+}
+
+/* Sidebar navigation active item */
+.list-group-item.active {
+    background-color: #000000 !important;
+    border-color: #000000 !important;
+    color: white !important;
+}
+
+/* Student Card Styles */
+.student-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.student-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.course-item-small {
+    background: #f8f9fa;
+    padding: 0.5rem;
+    border-radius: 4px;
+    border-left: 3px solid #28a745;
+}
+
+.course-item-small strong {
+    margin: 0;
+    padding: 0;
+    line-height: 1.2;
+}
+
+.course-item-small small {
+    margin: 0;
+    padding: 0;
+    line-height: 1.2;
+}
+
+.course-item-small.enrolled {
+    border-left-color: #0d6efd;
+}
+
+/* Breadcrumb styling */
+.breadcrumb {
+    background: transparent;
+    padding: 0.5rem 0;
+}
+
+.breadcrumb-item a {
+    color: #6c757d;
+    text-decoration: none;
+}
+
+.breadcrumb-item a:hover {
+    color: #495057;
+}
+
+/* Progress circle improvements */
+.progress-circle {
+    margin: 1rem 0;
+}
+
+.progress-container {
+    position: relative;
+}
+
+.progress-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-weight: bold;
+    font-size: 0.9rem;
+    color: #495057;
+    z-index: 10;
+    pointer-events: none;
+}
+
+.progress-legend {
+    text-align: center;
+}
+
+.legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.legend-color {
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+    display: inline-block;
+}
+
+/* Custom progress bar for seamless display */
+.custom-progress {
+    overflow: hidden;
+}
+
+.progress-bar-segments {
+    border-radius: 0.375rem;
+}
+
+.stat-item h4 {
+    margin-bottom: 0.25rem;
 }

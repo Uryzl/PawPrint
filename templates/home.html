@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UMBC Degree Planner - AI-Powered Academic Advisor</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/styles.css') }}" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('index') }}">
+                <i class="fas fa-graduation-cap me-2"></i>UMBC Degree Planner
+            </a>
+            <span class="navbar-text">
+                <i class="fas fa-robot me-1"></i>AI-Powered Academic Advisor
+            </span>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- Welcome Message -->
+        <div class="card">
+            <div class="card-body text-center">
+                <h1><i class="fas fa-route me-2"></i>Welcome to UMBC Degree Planner</h1>
+                <p class="lead">Find the fastest path to graduation with AI-powered recommendations</p>
+                <p>Search for and select a student to begin planning their optimal degree path.</p>
+                
+                <!-- Quick Student Search -->
+                <div class="row justify-content-center mt-4">
+                    <div class="col-md-6">
+                        <form action="{{ url_for('students') }}" method="GET">
+                            <div class="input-group">
+                                <input type="text" name="search" class="form-control form-control-lg" 
+                                       placeholder="Search for a student...">
+                                <button class="btn btn-primary" type="submit">
+                                    <i class="fas fa-search"></i> Search
+                                </button>
+                            </div>
+                        </form>
+                        <div class="mt-3">
+                            <a href="{{ url_for('students') }}" class="btn btn-outline-primary">
+                                <i class="fas fa-list me-1"></i>Browse All Students
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Feature Boxes -->
+                <div class="row mt-5">
+                    <div class="col-md-4">
+                        <div class="feature-box">
+                            <i class="fas fa-brain fa-2x" style="color: #0d6efd;"></i>
+                            <h5>AI Recommendations</h5>
+                            <p>Get personalized course suggestions based on learning style and performance</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="feature-box">
+                            <i class="fas fa-sitemap fa-2x text-success"></i>
+                            <h5>Optimal Pathways</h5>
+                            <p>Find the fastest route to graduation considering prerequisites and scheduling</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="feature-box">
+                            <i class="fas fa-users fa-2x" style="color: #0d6efd;"></i>
+                            <h5>Peer Insights</h5>
+                            <p>Learn from similar students who have succeeded in their academic journey</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ student.name }} - Overview</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/styles.css') }}" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('index') }}">
+                <i class="fas fa-graduation-cap me-2"></i>UMBC Degree Planner
+            </a>
+            <span class="navbar-text">
+                <i class="fas fa-robot me-1"></i>AI-Powered Academic Advisor
+            </span>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- Breadcrumb -->
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('students') }}">Students</a></li>
+                <li class="breadcrumb-item active">{{ student.name }}</li>
+            </ol>
+        </nav>
+
+        <div class="row">
+            <!-- Student Info Sidebar -->
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-user me-2"></i>Student Profile</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="student-info-item">
+                            <span class="student-info-label">Name</span>
+                            <span class="student-info-value">{{ student.name }}</span>
+                        </div>
+                        <div class="student-info-item">
+                            <span class="student-info-label">Learning Style</span>
+                            <span class="student-info-value">
+                                <i class="fas fa-brain me-1"></i>{{ student.learning_style }}
+                            </span>
+                        </div>
+                        <div class="student-info-item">
+                            <span class="student-info-label">Degree</span>
+                            <span class="student-info-value">{{ student.degree_name }}</span>
+                        </div>
+                        <div class="student-info-item">
+                            <span class="student-info-label">Expected Graduation</span>
+                            <span class="student-info-value">{{ student.expected_graduation }}</span>
+                        </div>
+                        <div class="student-info-item">
+                            <span class="student-info-label">Preferred Load</span>
+                            <span class="student-info-value">{{ student.preferred_course_load }} courses</span>
+                        </div>
+                        <div class="student-info-item">
+                            <span class="student-info-label">Work Hours</span>
+                            <span class="student-info-value">{{ student.work_hours_per_week }}h/week</span>
+                        </div>
+                        <div class="student-info-item">
+                            <span class="student-info-label">Completed Courses</span>
+                            <span class="student-info-value">{{ completed_courses|length }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Navigation -->
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h6><i class="fas fa-bars me-2"></i>Navigation</h6>
+                    </div>
+                    <div class="list-group list-group-flush">
+                        <a href="{{ url_for('student_overview', student_id=student.id) }}" 
+                           class="list-group-item list-group-item-action active">
+                            <i class="fas fa-chart-pie me-2"></i>Overview
+                        </a>
+                        <a href="{{ url_for('student_pathway', student_id=student.id) }}" 
+                           class="list-group-item list-group-item-action">
+                            <i class="fas fa-route me-2"></i>Optimal Path
+                        </a>
+                        <a href="{{ url_for('student_recommendations', student_id=student.id) }}" 
+                           class="list-group-item list-group-item-action">
+                            <i class="fas fa-lightbulb me-2"></i>Recommendations
+                        </a>
+                        <a href="{{ url_for('student_chat', student_id=student.id) }}" 
+                           class="list-group-item list-group-item-action">
+                            <i class="fas fa-comments me-2"></i>AI Assistant
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="col-md-9">
+                <h2><i class="fas fa-chart-pie me-2"></i>{{ student.name }} - Overview</h2>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5><i class="fas fa-graduation-cap me-2"></i>Degree Progress</h5>
+                            </div>
+                            <div class="card-body">
+                                {% set total_credits_completed = completed_courses|sum(attribute='credits') or (completed_courses|length * 3) %}
+                                {% set total_credits_required = degree_info.total_credits or 120 %}
+                                {% set progress_percentage = (total_credits_completed / total_credits_required * 100)|round(1) %}
+                                
+                                <div class="text-center mb-4">
+                                    <div class="progress-circle">
+                                        <div class="progress-container">
+                                            {% set enrolled_credits = enrolled_courses|sum(attribute='credits') or (enrolled_courses|length * 3) %}
+                                            {% set enrolled_percentage = (enrolled_credits / total_credits_required * 100)|round(1) %}
+                                            {% set total_progress = progress_percentage + enrolled_percentage %}
+                                            <div class="progress custom-progress" style="height: 20px;">
+                                                <div class="progress-bar-segments" 
+                                                     style="width: 100%; height: 100%; position: relative; background: linear-gradient(to right, 
+                                                            #28a745 0%, 
+                                                            #28a745 {{ progress_percentage }}%, 
+                                                            #0d6efd {{ progress_percentage }}%, 
+                                                            #0d6efd {{ total_progress|round(1) }}%, 
+                                                            #e9ecef {{ total_progress|round(1) }}%, 
+                                                            #e9ecef 100%);"
+                                                     title="Completed: {{ progress_percentage }}% | Enrolled: {{ enrolled_percentage }}%">
+                                                </div>
+                                            </div>
+                                            <div class="progress-text">{{ total_progress|round(1) }}%</div>
+                                        </div>
+                                        <div class="progress-legend mt-2">
+                                            <small class="text-muted">
+                                                <span class="legend-item">
+                                                    <span class="legend-color bg-success"></span> Completed
+                                                </span>
+                                                <span class="legend-item ms-3">
+                                                    <span class="legend-color" style="background-color: #0d6efd;"></span> Enrolled
+                                                </span>
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row text-center">
+                                    <div class="col-3">
+                                        <div class="stat-item">
+                                            <h4 class="text-success">{{ completed_courses|length }}</h4>
+                                            <small>Completed</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-3">
+                                        <div class="stat-item">
+                                            <h4 style="color: #0d6efd;">{{ enrolled_courses|length }}</h4>
+                                            <small>Enrolled</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-3">
+                                        <div class="stat-item">
+                                            <h4 class="text-primary">{{ total_credits_completed }}</h4>
+                                            <small>Credits</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-3">
+                                        <div class="stat-item">
+                                            <h4 class="text-muted">{{ total_credits_required }}</h4>
+                                            <small>Required</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5><i class="fas fa-calendar me-2"></i>Timeline</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="text-center">
+                                    <p class="text-muted">Generate an optimal path to see detailed timeline</p>
+                                    <a href="{{ url_for('student_pathway', student_id=student.id) }}" 
+                                       class="btn btn-outline-primary btn-sm">
+                                        <i class="fas fa-route me-1"></i>View Optimal Path
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5><i class="fas fa-book me-2"></i>Course History</h5>
+                            </div>
+                            <div class="card-body">
+                                {% if completed_courses %}
+                                <h6>Completed Courses ({{ completed_courses|length }})</h6>
+                                <div class="row">
+                                    {% for course in completed_courses[:6] %}
+                                    <div class="col-md-4 mb-2">
+                                        <div class="course-item-small">
+                                            <div><strong>{{ course.course_code }}</strong></div>
+                                            <div><small>{{ course.course_name }}</small></div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% if completed_courses|length > 6 %}
+                                <p class="text-muted">... and {{ completed_courses|length - 6 }} more</p>
+                                {% endif %}
+                                {% endif %}
+                                
+                                {% if enrolled_courses %}
+                                <h6 class="mt-3">Currently Enrolled ({{ enrolled_courses|length }})</h6>
+                                <div class="row">
+                                    {% for course in enrolled_courses %}
+                                    <div class="col-md-4 mb-2">
+                                        <div class="course-item-small enrolled">
+                                            <div><strong>{{ course.course_code }}</strong></div>
+                                            <div><small>{{ course.course_name }}</small></div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
