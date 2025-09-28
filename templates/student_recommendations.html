@@ -29,12 +29,49 @@
                 <div class="col-12">
                     <div class="card">
                         <div class="card-header">
-                            <h5><i class="fas fa-star me-2"></i>Next Term Course Recommendations</h5>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h5><i class="fas fa-robot me-2"></i>AI-Powered Course Recommendations</h5>
+                                <div class="d-flex align-items-center">
+                                    {% if context_info %}
+                                    <div class="text-muted small me-3">
+                                        {% if context_info.ai_powered %}
+                                            <span class="badge bg-success me-2"><i class="fas fa-brain"></i> AI Generated</span>
+                                        {% endif %}
+                                        {% if context_info.similar_students_count %}
+                                            <span class="badge bg-info me-2">{{ context_info.similar_students_count }} Similar Students</span>
+                                        {% endif %}
+                                        {% if context_info.available_courses_count %}
+                                            <span class="badge bg-secondary">{{ context_info.available_courses_count }} Available Courses</span>
+                                        {% endif %}
+                                        {% if context_info.fallback_used %}
+                                            <span class="badge bg-warning">Fallback Used</span>
+                                        {% endif %}
+                                    </div>
+                                    {% endif %}
+                                    <button class="btn btn-outline-primary btn-sm" onclick="refreshRecommendations()" id="refreshBtn">
+                                        <i class="fas fa-sync-alt"></i> Refresh
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                         <div class="card-body">
-                            {% if recommendations %}
-                                <div class="row">
-                                    {% for rec in recommendations %}
+                            <!-- Loading State -->
+                            <div id="loadingState" class="text-center py-5" {% if recommendations %}style="display: none;"{% endif %}>
+                                <div class="spinner-border text-primary mb-3" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <h5>Generating AI-Powered Recommendations</h5>
+                                <p class="text-muted">Analyzing your academic profile and similar students...</p>
+                                <div class="progress mt-3" style="height: 6px;">
+                                    <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%" id="loadingProgress"></div>
+                                </div>
+                            </div>
+                            
+                            <!-- Recommendations Content -->
+                            <div id="recommendationsContent" {% if not recommendations %}style="display: none;"{% endif %}>
+                                <div class="row" id="recommendationsGrid">
+                                    {% if recommendations %}
+                                        {% for rec in recommendations %}
                                     <div class="col-md-6 mb-3">
                                         <div class="card recommendation-item fade-in h-100">
                                             <div class="card-body">
@@ -93,6 +130,28 @@
                                                         </ul>
                                                     </div>
                                                 </div>
+                                                
+                                                {% if rec.ai_reasoning %}
+                                                <div class="mt-3 pt-2 border-top">
+                                                    <div class="small">
+                                                        <strong><i class="fas fa-robot text-primary"></i> AI Recommendation:</strong>
+                                                        <div class="text-muted mt-1">{{ rec.ai_reasoning }}</div>
+                                                    </div>
+                                                </div>
+                                                {% endif %}
+                                                
+                                                {% if rec.priority %}
+                                                <div class="mt-2">
+                                                    {% if rec.priority == 'High' %}
+                                                        <span class="badge bg-danger me-2">High Priority</span>
+                                                    {% elif rec.priority == 'Medium' %}
+                                                        <span class="badge bg-warning me-2">Medium Priority</span>  
+                                                    {% else %}
+                                                        <span class="badge bg-secondary me-2">Low Priority</span>
+                                                    {% endif %}
+                                                </div>
+                                                {% endif %}
+                                                
                                                 <div class="mt-2">
                                                     <button class="btn btn-outline-info btn-xs" 
                                                             onclick="showCourseDetails('{{ rec.course_id or 'N/A' }}')">
@@ -102,18 +161,22 @@
                                             </div>
                                         </div>
                                     </div>
-                                    {% endfor %}
+                                        {% endfor %}
+                                    {% else %}
+                                        <!-- This will be populated by JavaScript -->
+                                    {% endif %}
                                 </div>
-                            {% else %}
-                                <div class="text-center text-muted">
-                                    <i class="fas fa-lightbulb fa-3x mb-3"></i>
-                                    <h5>Generate Recommendations</h5>
-                                    <p>AI-powered course recommendations will appear here based on your academic progress and learning style.</p>
-                                    <button onclick="generateRecommendations()" class="btn btn-primary">
-                                        <i class="fas fa-magic me-1"></i>Generate Recommendations
-                                    </button>
-                                </div>
-                            {% endif %}
+                            </div>
+                            
+                            <!-- Error State -->
+                            <div id="errorState" class="text-center text-muted py-5" style="display: none;">
+                                <i class="fas fa-exclamation-triangle fa-3x mb-3 text-warning"></i>
+                                <h5>Unable to Load Recommendations</h5>
+                                <p>There was an issue generating your AI recommendations. Please try refreshing.</p>
+                                <button class="btn btn-outline-primary" onclick="loadRecommendations()">
+                                    <i class="fas fa-sync-alt"></i> Try Again
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -356,5 +419,141 @@
             `;
         });
     }
+
+    function refreshRecommendations() {
+        const refreshBtn = document.getElementById('refreshBtn');
+        const originalText = refreshBtn.innerHTML;
+        
+        // Show loading state
+        refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing...';
+        refreshBtn.disabled = true;
+        
+        // Call refresh API
+        fetch(`/api/course-recommendations/{{ student.id }}/refresh`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Reload the page to show fresh recommendations
+                window.location.reload();
+            } else {
+                alert('Failed to refresh recommendations: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error refreshing recommendations:', error);
+            alert('Failed to refresh recommendations. Please try again.');
+        })
+        .finally(() => {
+            // Restore button state
+            refreshBtn.innerHTML = originalText;
+            refreshBtn.disabled = false;
+        });
+    }
+
+    // Load recommendations asynchronously
+    function loadRecommendations() {
+        const loadingState = document.getElementById('loadingState');
+        const recommendationsContent = document.getElementById('recommendationsContent');
+        const errorState = document.getElementById('errorState');
+        const progressBar = document.getElementById('loadingProgress');
+        
+        // Show loading state
+        loadingState.style.display = 'block';
+        recommendationsContent.style.display = 'none';
+        errorState.style.display = 'none';
+        
+        // Animate progress bar
+        let progress = 0;
+        const progressInterval = setInterval(() => {
+            progress += Math.random() * 15;
+            if (progress > 90) progress = 90;
+            progressBar.style.width = progress + '%';
+        }, 500);
+        
+        // Fetch recommendations
+        fetch(`/api/course-recommendations/{{ student.id }}`)
+            .then(response => response.json())
+            .then(data => {
+                clearInterval(progressInterval);
+                progressBar.style.width = '100%';
+                
+                setTimeout(() => {
+                    if (data.success && data.recommendations && data.recommendations.length > 0) {
+                        displayRecommendations(data.recommendations);
+                        loadingState.style.display = 'none';
+                        recommendationsContent.style.display = 'block';
+                    } else {
+                        loadingState.style.display = 'none';
+                        errorState.style.display = 'block';
+                    }
+                }, 500);
+            })
+            .catch(error => {
+                console.error('Error loading recommendations:', error);
+                clearInterval(progressInterval);
+                loadingState.style.display = 'none';
+                errorState.style.display = 'block';
+            });
+    }
+
+    function displayRecommendations(recommendations) {
+        const grid = document.getElementById('recommendationsGrid');
+        grid.innerHTML = '';
+        
+        recommendations.forEach(rec => {
+            const col = document.createElement('div');
+            col.className = 'col-md-6 mb-3';
+            
+            col.innerHTML = `
+                <div class="card recommendation-item fade-in h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <h5 class="mb-1">${rec.course_name || 'Unknown Course'} <span class="text-muted">(${rec.course_id || 'N/A'})</span></h5>
+                                <div class="text-muted small">
+                                    ${rec.department || 'General'} • Level ${rec.level || 'N/A'} • ${rec.credits || 0} credits
+                                </div>
+                            </div>
+                            <div class="text-end">
+                                <span class="badge bg-dark text-white">${rec.recommendation_score ? 'Score ' + rec.recommendation_score.toFixed(1) : 'Score N/A'}</span>
+                                ${rec.priority ? `<div class="mt-1"><span class="badge ${rec.priority === 'High' ? 'bg-danger' : rec.priority === 'Medium' ? 'bg-warning' : 'bg-secondary'}">${rec.priority} Priority</span></div>` : ''}
+                            </div>
+                        </div>
+                        
+                        ${rec.ai_reasoning ? `
+                        <div class="mt-3 pt-2 border-top">
+                            <div class="small">
+                                <strong><i class="fas fa-robot text-primary"></i> AI Recommendation:</strong>
+                                <div class="text-muted mt-1">${rec.ai_reasoning}</div>
+                            </div>
+                        </div>
+                        ` : ''}
+                        
+                        <div class="mt-2">
+                            <button class="btn btn-outline-info btn-xs" onclick="showCourseDetails('${rec.course_id || 'N/A'}')">
+                                <i class="fas fa-info-circle"></i> Details
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            grid.appendChild(col);
+        });
+    }
+
+    // Auto-load recommendations when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        // Check if we need to load recommendations
+        const loadingState = document.getElementById('loadingState');
+        if (loadingState && loadingState.style.display !== 'none') {
+            loadRecommendations();
+        }
+    });
 </script>
 {% endblock %}
