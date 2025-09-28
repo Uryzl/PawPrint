@@ -762,6 +762,25 @@ body {
     box-shadow: 0 4px 12px rgba(13, 110, 253, 0.25);
 }
 
+/* Extra small button styling */
+.btn-xs {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    line-height: 1.2;
+    border-radius: 0.25rem;
+}
+
+.btn-outline-info.btn-xs {
+    border-color: #17a2b8;
+    color: #17a2b8;
+}
+
+.btn-outline-info.btn-xs:hover {
+    background-color: #17a2b8;
+    border-color: #17a2b8;
+    color: #fff;
+}
+
 /* Breadcrumb styling */
 .breadcrumb {
     background: transparent;

@@ -93,6 +93,12 @@
                                                         </ul>
                                                     </div>
                                                 </div>
+                                                <div class="mt-2">
+                                                    <button class="btn btn-outline-info btn-xs" 
+                                                            onclick="showCourseDetails('{{ rec.course_id or 'N/A' }}')">
+                                                        <i class="fas fa-info-circle"></i> Details
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -109,6 +115,27 @@
                                 </div>
                             {% endif %}
                         </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Course Details Modal -->
+<div class="modal fade" id="courseDetailsModal" tabindex="-1" aria-labelledby="courseDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="courseDetailsModalLabel">
+                    <i class="fas fa-book me-2"></i>Course Details
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="courseDetailsBody">
+                <div class="text-center">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading...</span>
                     </div>
                 </div>
             </div>
@@ -133,6 +160,201 @@
         } catch (error) {
             alert('Error: ' + error.message);
         }
+    }
+    
+    // Course details functionality
+    function showCourseDetails(courseId) {
+        const modal = new bootstrap.Modal(document.getElementById('courseDetailsModal'));
+        const modalBody = document.getElementById('courseDetailsBody');
+        
+        // Show loading spinner
+        modalBody.innerHTML = `
+            <div class="text-center">
+                <div class="spinner-border" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        `;
+        
+        modal.show();
+        
+        // Fetch course schedule details first
+        fetch(`/api/course/${courseId}`)
+        .then(r => r.json())
+        .then(scheduleData => {
+            // Get the first instructor's ID for compatibility analysis
+            const instructorId = scheduleData.instructors?.[0]?.faculty?.id || 'F01030';
+            
+            // Fetch compatibility data using the actual instructor
+            return Promise.all([
+                Promise.resolve(scheduleData),
+                fetch(`/api/compatibility/${instructorId}/{{ student.learning_style or student.learningStyle or "Visual" }}`).then(r => r.json())
+            ]);
+        })
+        .then(([scheduleData, compatibilityData]) => {
+            let content = `
+                <div class="course-details">
+                    <h6>${scheduleData.course?.name || courseId}</h6>
+                    <p class="text-muted">${scheduleData.course?.department || 'Unknown Department'}</p>
+            `;
+            
+            // Faculty information
+            if (scheduleData.instructors && scheduleData.instructors.length > 0) {
+                content += `
+                    <div class="mt-3">
+                        <h6><i class="fas fa-chalkboard-teacher me-2"></i>Instructors</h6>
+                        <div class="row">
+                `;
+                
+                scheduleData.instructors.forEach(instructor => {
+                    const compatibility = compatibilityData.compatibility_score || 0.5;
+                    const compatibilityClass = compatibility >= 0.8 ? 'success' : compatibility >= 0.6 ? 'warning' : 'secondary';
+                    
+                    content += `
+                        <div class="col-md-6 mb-3">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h6 class="card-title">${instructor.faculty.name}</h6>
+                                    <p class="text-muted mb-2">${instructor.faculty.department}</p>
+                                    <div class="mb-2">
+                                        <span class="badge bg-info">Rating: ${instructor.faculty.avgRating}/5.0</span>
+                                    </div>
+                                    <div class="mb-2">
+                                        <small><strong>Teaching Style:</strong> ${instructor.faculty.teachingStyle?.join(', ') || 'Not specified'}</small>
+                                    </div>
+                                    <div class="mb-2">
+                                        <small><strong>Terms:</strong> ${instructor.teaching_terms?.join(', ') || 'Not specified'}</small>
+                                    </div>
+                                    <div class="compatibility-score">
+                                        <span class="badge bg-${compatibilityClass}">
+                                            ${Math.round(compatibility * 100)}% Match
+                                        </span>
+                                        <small class="d-block text-muted">${compatibilityData.notes || 'Compatibility analysis'}</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                content += `
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Prerequisites section
+            if (scheduleData.leads_from && scheduleData.leads_from.length > 0) {
+                content += `
+                    <div class="mt-3">
+                        <h6><i class="fas fa-arrow-right me-2"></i>Prerequisites</h6>
+                        <div class="row">
+                `;
+                
+                scheduleData.leads_from.forEach(prereq => {
+                    const course = prereq.course;
+                    content += `
+                        <div class="col-md-6 mb-2">
+                            <div class="card">
+                                <div class="card-body p-2">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <strong>${course.id}</strong>
+                                            <div class="small text-muted">${course.name || 'Course Name'}</div>
+                                        </div>
+                                        <div class="text-end">
+                                            ${prereq.success_correlation ? `<small class="text-success">${Math.round(prereq.success_correlation * 100)}% correlation</small>` : ''}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                content += `
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Unlocked courses section
+            if (scheduleData.prerequisites_for && scheduleData.prerequisites_for.length > 0) {
+                content += `
+                    <div class="mt-3">
+                        <h6><i class="fas fa-unlock me-2"></i>Unlocks Courses</h6>
+                        <div class="row">
+                `;
+                
+                scheduleData.prerequisites_for.forEach(unlock => {
+                    const course = unlock.course;
+                    content += `
+                        <div class="col-md-6 mb-2">
+                            <div class="card">
+                                <div class="card-body p-2">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <strong>${course.id}</strong>
+                                            <div class="small text-muted">${course.name || 'Course Name'}</div>
+                                        </div>
+                                        <div class="text-end">
+                                            ${unlock.min_grade ? `<small class="text-warning">Min Grade: ${unlock.min_grade}</small>` : ''}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                content += `
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Terms offered
+            if (scheduleData.offered_terms && scheduleData.offered_terms.length > 0) {
+                content += `
+                    <div class="mt-3">
+                        <h6><i class="fas fa-calendar me-2"></i>Offered Terms</h6>
+                        <div class="row">
+                `;
+                
+                scheduleData.offered_terms.forEach(term => {
+                    content += `
+                        <div class="col-md-4 mb-2">
+                            <div class="card">
+                                <div class="card-body text-center p-2">
+                                    <h6 class="card-title mb-1">${term.name}</h6>
+                                    <small class="text-muted">${term.type}</small>
+                                    <div class="mt-1">
+                                        <small>${term.startDate} to ${term.endDate}</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                content += `
+                        </div>
+                    </div>
+                `;
+            }
+            
+            content += '</div>';
+            modalBody.innerHTML = content;
+        })
+        .catch(error => {
+            console.error('Error fetching course details:', error);
+            modalBody.innerHTML = `
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Unable to load course details. Please try again later.
+                </div>
+            `;
+        });
     }
 </script>
 {% endblock %}
