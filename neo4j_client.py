@@ -99,9 +99,16 @@ class Neo4jClient:
             
         query = """
         MATCH (s:Student)
-        OPTIONAL MATCH (s)-[:PURSUING]->(d:Degree)
-        RETURN s.id as id, s.name as name, s.learningStyle as learning_style,
-               d.name as degree_name, s.expectedGraduation as expected_graduation
+        RETURN s.id as id, 
+               s.name as name, 
+               s.learningStyle as learning_style,
+               s.enrollmentDate as enrollment_date,
+               s.expectedGraduation as expected_graduation,
+               s.preferredCourseLoad as preferred_course_load,
+               s.preferredPace as preferred_pace,
+               s.workHoursPerWeek as work_hours_per_week,
+               s.financialAidStatus as financial_aid_status,
+               s.preferredInstructionMode as preferred_instruction_mode
         ORDER BY s.name
         LIMIT $limit
         """
@@ -119,32 +126,52 @@ class Neo4jClient:
         """Return demo student data when Neo4j is not available"""
         return [
             {
-                "id": "ST12345",
-                "name": "Alice Johnson",
-                "learning_style": "Visual",
-                "degree_name": "Bachelor of Science in Computer Science",
-                "expected_graduation": "2025-05-15"
+                "id": "RE14884",
+                "name": "Nicholas Berry",
+                "learning_style": "Auditory",
+                "enrollment_date": "2024-03-27",
+                "expected_graduation": "2027-07-19",
+                "preferred_course_load": 5,
+                "preferred_pace": "Standard",
+                "work_hours_per_week": 10,
+                "financial_aid_status": "Self-Pay",
+                "preferred_instruction_mode": "In-person"
             },
             {
                 "id": "ST23456",
                 "name": "Bob Smith",
                 "learning_style": "Kinesthetic",
-                "degree_name": "Bachelor of Arts in Computer Science",
-                "expected_graduation": "2025-12-15"
+                "enrollment_date": "2023-08-20",
+                "expected_graduation": "2025-12-15",
+                "preferred_course_load": 4,
+                "preferred_pace": "Accelerated",
+                "work_hours_per_week": 15,
+                "financial_aid_status": "Financial Aid",
+                "preferred_instruction_mode": "Hybrid"
             },
             {
                 "id": "ST34567",
                 "name": "Carol Davis",
-                "learning_style": "Auditory",
-                "degree_name": "Bachelor of Science in Biology",
-                "expected_graduation": "2026-05-15"
+                "learning_style": "Visual",
+                "enrollment_date": "2022-08-25",
+                "expected_graduation": "2026-05-15",
+                "preferred_course_load": 5,
+                "preferred_pace": "Standard",
+                "work_hours_per_week": 8,
+                "financial_aid_status": "Scholarship",
+                "preferred_instruction_mode": "Online"
             },
             {
                 "id": "ST45678",
                 "name": "David Wilson",
                 "learning_style": "Reading-Writing",
-                "degree_name": "Bachelor of Arts in Biology",
-                "expected_graduation": "2025-08-15"
+                "enrollment_date": "2021-08-30",
+                "expected_graduation": "2025-08-15",
+                "preferred_course_load": 6,
+                "preferred_pace": "Standard",
+                "work_hours_per_week": 12,
+                "financial_aid_status": "Self-Pay",
+                "preferred_instruction_mode": "In-person"
             }
         ]
 
@@ -159,11 +186,18 @@ class Neo4jClient:
             
         query = """
         MATCH (s:Student)
-        OPTIONAL MATCH (s)-[:PURSUING]->(d:Degree)
         WHERE toLower(s.name) CONTAINS toLower($search_term) 
            OR toLower(s.id) CONTAINS toLower($search_term)
-        RETURN s.id as id, s.name as name, s.learningStyle as learning_style,
-               d.name as degree_name, s.expectedGraduation as expected_graduation
+        RETURN s.id as id, 
+               s.name as name, 
+               s.learningStyle as learning_style,
+               s.enrollmentDate as enrollment_date,
+               s.expectedGraduation as expected_graduation,
+               s.preferredCourseLoad as preferred_course_load,
+               s.preferredPace as preferred_pace,
+               s.workHoursPerWeek as work_hours_per_week,
+               s.financialAidStatus as financial_aid_status,
+               s.preferredInstructionMode as preferred_instruction_mode
         ORDER BY s.name
         LIMIT $limit
         """
@@ -254,39 +288,130 @@ class Neo4jClient:
     def _get_demo_completed_courses(self, student_id: str) -> List[Dict]:
         """Return demo completed courses for a student."""
         demo_completed = {
-            "ST12345": [
+            "RE14884": [
                 {
-                    "course_id": "CMSC201",
-                    "course_name": "Computer Science I",
-                    "credits": 4,
-                    "department": "CMSC",
-                    "level": 200,
+                    "id": "CSUU 300",
+                    "name": "Game Development Applications",
+                    "department": "Computer Science",
+                    "credits": 3,
+                    "level": 300,
+                    "avgDifficulty": 2,
+                    "avgTimeCommitment": 7,
+                    "termAvailability": ["Fall", "Spring"],
+                    "instructionModes": ["In-person", "Online", "Hybrid"],
+                    "tags": ["Computer Science", "Level-3", "Applications", "Game"],
+                    "visualLearnerSuccess": 0.75,
+                    "auditoryLearnerSuccess": 0.81,
+                    "kinestheticLearnerSuccess": 0.84,
+                    "readingLearnerSuccess": 0.87,
+                    # Completion details from COMPLETED relationship
+                    "completion_term": "Summer2024",
                     "grade": "A",
-                    "term": "2021FA",
-                    "study_hours": 10,
-                    "difficulty": 0.4
+                    "difficulty_experienced": 4,
+                    "time_spent_hours": 7,
+                    "instruction_mode": "In-person",
+                    "enjoyment": True
                 },
                 {
-                    "course_id": "CMSC202",
-                    "course_name": "Computer Science II",
+                    "id": "CSSS 200",
+                    "name": "Data Structures",
+                    "department": "Computer Science",
                     "credits": 4,
-                    "department": "CMSC",
                     "level": 200,
+                    "avgDifficulty": 3,
+                    "avgTimeCommitment": 9,
+                    "termAvailability": ["Fall", "Spring"],
+                    "instructionModes": ["In-person", "Online"],
+                    "tags": ["Computer Science", "Level-2", "Fundamentals"],
+                    "visualLearnerSuccess": 0.70,
+                    "auditoryLearnerSuccess": 0.85,
+                    "kinestheticLearnerSuccess": 0.78,
+                    "readingLearnerSuccess": 0.82,
+                    # Completion details from COMPLETED relationship
+                    "completion_term": "Spring2024",
                     "grade": "A-",
-                    "term": "2022SP",
-                    "study_hours": 12,
-                    "difficulty": 0.5
+                    "difficulty_experienced": 3,
+                    "time_spent_hours": 9,
+                    "instruction_mode": "Online",
+                    "enjoyment": True
                 },
                 {
-                    "course_id": "MATH151",
-                    "course_name": "Calculus I",
+                    "id": "CSTT 101",
+                    "name": "Introduction to Programming",
+                    "department": "Computer Science",
                     "credits": 4,
-                    "department": "MATH",
-                    "level": 100,
+                    "level": 101,
+                    "completion_term": "Fall2023",
+                    "grade": "A+",
+                    "difficulty_experienced": 2,
+                    "time_spent_hours": 6,
+                    "instruction_mode": "In-person",
+                    "enjoyment": True
+                },
+                {
+                    "id": "MATH 150",
+                    "name": "Calculus I",
+                    "department": "Mathematics",
+                    "credits": 4,
+                    "level": 150,
+                    "completion_term": "Fall2023",
                     "grade": "B+",
-                    "term": "2021FA",
-                    "study_hours": 8,
-                    "difficulty": 0.6
+                    "difficulty_experienced": 4,
+                    "time_spent_hours": 12,
+                    "instruction_mode": "In-person",
+                    "enjoyment": False
+                },
+                {
+                    "id": "ENGL 100",
+                    "name": "Writing and Research",
+                    "department": "English",
+                    "credits": 3,
+                    "level": 100,
+                    "completion_term": "Spring2024",
+                    "grade": "A",
+                    "difficulty_experienced": 2,
+                    "time_spent_hours": 5,
+                    "instruction_mode": "Online",
+                    "enjoyment": True
+                },
+                {
+                    "id": "PHYS 121",
+                    "name": "Physics I",
+                    "department": "Physics",
+                    "credits": 4,
+                    "level": 121,
+                    "completion_term": "Spring2024",
+                    "grade": "B",
+                    "difficulty_experienced": 5,
+                    "time_spent_hours": 14,
+                    "instruction_mode": "In-person",
+                    "enjoyment": False
+                },
+                {
+                    "id": "CMSC 201",
+                    "name": "Computer Science I",
+                    "department": "Computer Science",
+                    "credits": 4,
+                    "level": 201,
+                    "completion_term": "Fall2023",
+                    "grade": "A",
+                    "difficulty_experienced": 3,
+                    "time_spent_hours": 8,
+                    "instruction_mode": "In-person",
+                    "enjoyment": True
+                },
+                {
+                    "id": "CMSC 202",
+                    "name": "Computer Science II",
+                    "department": "Computer Science",
+                    "credits": 4,
+                    "level": 202,
+                    "completion_term": "Spring2024",
+                    "grade": "A-",
+                    "difficulty_experienced": 4,
+                    "time_spent_hours": 10,
+                    "instruction_mode": "In-person",
+                    "enjoyment": True
                 }
             ],
             "ST23456": [
@@ -357,24 +482,90 @@ class Neo4jClient:
     def _get_demo_enrolled_courses(self, student_id: str) -> List[Dict]:
         """Return demo currently enrolled courses for a student."""
         demo_enrolled = {
-            "ST12345": [
+            "RE14884": [
                 {
-                    "course_id": "CMSC331",
-                    "course_name": "Principles of Programming Languages",
+                    "id": "BRRR 100",
+                    "name": "Current Enrolled Course",
                     "credits": 3,
-                    "department": "CMSC",
-                    "level": 300,
-                    "term": "2024SP",
-                    "expected_grade": "A-"
+                    "department": "Computer Science",
+                    "level": 100,
+                    "avgDifficulty": 2,
+                    "avgTimeCommitment": 6,
+                    "termAvailability": ["Fall", "Spring", "Summer"],
+                    "instructionModes": ["In-person", "Online"],
+                    "tags": ["Computer Science", "Level-1", "Foundations"]
                 },
                 {
-                    "course_id": "STAT355",
-                    "course_name": "Probability and Statistics",
+                    "id": "CSXX 400",
+                    "name": "Advanced Topics in CS",
                     "credits": 4,
-                    "department": "STAT",
+                    "department": "Computer Science", 
+                    "level": 400,
+                    "avgDifficulty": 4,
+                    "avgTimeCommitment": 12,
+                    "termAvailability": ["Fall", "Spring"],
+                    "instructionModes": ["In-person"],
+                    "tags": ["Computer Science", "Level-4", "Advanced"]
+                },
+                {
+                    "id": "CSYY 350",
+                    "name": "Software Engineering Methods",
+                    "credits": 3,
+                    "department": "Computer Science",
+                    "level": 350,
+                    "avgDifficulty": 3,
+                    "avgTimeCommitment": 9,
+                    "termAvailability": ["Fall", "Spring"],
+                    "instructionModes": ["In-person", "Hybrid"],
+                    "tags": ["Computer Science", "Level-3", "Software"]
+                },
+                {
+                    "id": "CSZZ 300",
+                    "name": "Database Systems",
+                    "credits": 4,
+                    "department": "Computer Science",
                     "level": 300,
-                    "term": "2024SP",
-                    "expected_grade": "B+"
+                    "avgDifficulty": 3,
+                    "avgTimeCommitment": 10,
+                    "termAvailability": ["Fall", "Spring"],
+                    "instructionModes": ["In-person", "Online"],
+                    "tags": ["Computer Science", "Level-3", "Database"]
+                },
+                {
+                    "id": "CSAA 250",
+                    "name": "Data Structures Advanced",
+                    "credits": 3,
+                    "department": "Computer Science",
+                    "level": 250,
+                    "avgDifficulty": 3,
+                    "avgTimeCommitment": 8,
+                    "termAvailability": ["Fall", "Spring"],
+                    "instructionModes": ["In-person", "Online"],
+                    "tags": ["Computer Science", "Level-2", "Data Structures"]
+                },
+                {
+                    "id": "CSBB 380",
+                    "name": "Computer Networks",
+                    "credits": 4,
+                    "department": "Computer Science",
+                    "level": 380,
+                    "avgDifficulty": 4,
+                    "avgTimeCommitment": 11,
+                    "termAvailability": ["Fall", "Spring"],
+                    "instructionModes": ["In-person"],
+                    "tags": ["Computer Science", "Level-3", "Networks"]
+                },
+                {
+                    "id": "CSCC 320",
+                    "name": "Machine Learning Basics",
+                    "credits": 3,
+                    "department": "Computer Science",
+                    "level": 320,
+                    "avgDifficulty": 4,
+                    "avgTimeCommitment": 10,
+                    "termAvailability": ["Fall", "Spring"],
+                    "instructionModes": ["In-person", "Online"],
+                    "tags": ["Computer Science", "Level-3", "AI", "ML"]
                 }
             ],
             "ST23456": [
@@ -1266,6 +1457,335 @@ class Neo4jClient:
                 "total_credits_remaining": total_required - total_completed - total_enrolled,
                 "completion_percentage": (total_completed / total_required * 100) if total_required > 0 else 0
             }
+
+    def get_student_complete_data(self, student_id: str) -> Optional[Dict]:
+        """Get ALL student data in a single optimized query"""
+        if not self.driver:
+            logger.warning("Neo4j not connected, returning demo data")
+            return self._get_demo_complete_data(student_id)
+            
+        query = """
+        MATCH (s:Student {id: $student_id})
+        OPTIONAL MATCH (s)-[comp:COMPLETED]->(cc:Course)
+        OPTIONAL MATCH (s)-[:ENROLLED_IN]->(ec:Course)
+        
+        RETURN s,
+               collect(DISTINCT {
+                   course: cc,
+                   relationship: comp,
+                   type: 'completed'
+               }) as completed_courses,
+               collect(DISTINCT {
+                   course: ec,
+                   type: 'enrolled'
+               }) as enrolled_courses
+        """
+        
+        try:
+            with self.driver.session() as session:
+                result = session.run(query, student_id=student_id)
+                record = result.single()
+                
+                if not record:
+                    return None
+                
+                # Process the comprehensive result
+                student_data = self._convert_neo4j_types(dict(record['s']))
+                
+                # Process completed courses with relationship data
+                completed = []
+                for item in record['completed_courses']:
+                    if item['course']:
+                        course_data = self._convert_neo4j_types(dict(item['course']))
+                        
+                        # Add completion details from the relationship
+                        if item['relationship']:
+                            rel_data = self._convert_neo4j_types(dict(item['relationship']))
+                            course_data.update({
+                                'completion_term': rel_data.get('term'),
+                                'grade': rel_data.get('grade'),
+                                'difficulty_experienced': rel_data.get('difficulty'),
+                                'time_spent_hours': rel_data.get('timeSpent'),
+                                'instruction_mode': rel_data.get('instructionMode'),
+                                'enjoyment': rel_data.get('enjoyment')
+                            })
+                        
+                        completed.append(course_data)
+                
+                # Process enrolled courses
+                enrolled = []
+                for item in record['enrolled_courses']:
+                    if item['course']:
+                        enrolled.append(self._convert_neo4j_types(dict(item['course'])))
+                
+                # Calculate degree progress based on completed courses
+                total_credits_completed = sum(course.get('credits', 0) for course in completed)
+                
+                return {
+                    'student': student_data,
+                    'degree_info': {
+                        'total_credits_completed': total_credits_completed,
+                        'estimated_total_credits': 120  # Default, can be updated later
+                    },
+                    'completed_courses': completed,
+                    'enrolled_courses': enrolled
+                }
+                
+        except Exception as e:
+            logger.error(f"Error fetching complete student data: {e}")
+            return self._get_demo_complete_data(student_id)
+    
+    def get_course_details(self, course_id: str) -> Optional[Dict]:
+        """Get detailed course information with relationships"""
+        if not self.driver:
+            logger.warning("Neo4j not connected, returning demo data")
+            return self._get_demo_course_details(course_id)
+            
+        query = """
+        MATCH (c:Course {id: $course_id})
+        OPTIONAL MATCH (c)-[prereq:PREREQUISITE_FOR]->(target:Course)
+        OPTIONAL MATCH (source:Course)-[leads:LEADS_TO]->(c)
+        OPTIONAL MATCH (c)-[similar:SIMILAR_CONTENT]->(related:Course)
+        
+        RETURN c,
+               collect(DISTINCT {
+                   course: target,
+                   relationship: prereq,
+                   type: 'prerequisite_for'
+               }) as prerequisites_for,
+               collect(DISTINCT {
+                   course: source,
+                   relationship: leads,
+                   type: 'leads_from'
+               }) as leads_from,
+               collect(DISTINCT {
+                   course: related,
+                   relationship: similar,
+                   type: 'similar_content'
+               }) as similar_courses
+        """
+        
+        try:
+            with self.driver.session() as session:
+                result = session.run(query, course_id=course_id)
+                record = result.single()
+                
+                if not record:
+                    return None
+                
+                course_data = self._convert_neo4j_types(dict(record['c']))
+                
+                # Process relationships
+                course_data['prerequisites_for'] = []
+                course_data['leads_from'] = []
+                course_data['similar_courses'] = []
+                
+                for item in record['prerequisites_for']:
+                    if item['course'] and item['relationship']:
+                        rel_data = self._convert_neo4j_types(dict(item['relationship']))
+                        target_course = self._convert_neo4j_types(dict(item['course']))
+                        course_data['prerequisites_for'].append({
+                            'course': target_course,
+                            'strength': rel_data.get('strength'),
+                            'min_grade': rel_data.get('minGrade')
+                        })
+                
+                for item in record['leads_from']:
+                    if item['course'] and item['relationship']:
+                        rel_data = self._convert_neo4j_types(dict(item['relationship']))
+                        source_course = self._convert_neo4j_types(dict(item['course']))
+                        course_data['leads_from'].append({
+                            'course': source_course,
+                            'commonality': rel_data.get('commonality'),
+                            'success_correlation': rel_data.get('successCorrelation')
+                        })
+                
+                for item in record['similar_courses']:
+                    if item['course'] and item['relationship']:
+                        rel_data = self._convert_neo4j_types(dict(item['relationship']))
+                        related_course = self._convert_neo4j_types(dict(item['course']))
+                        course_data['similar_courses'].append({
+                            'course': related_course,
+                            'similarity': rel_data.get('similarity')
+                        })
+                
+                return course_data
+                
+        except Exception as e:
+            logger.error(f"Error fetching course details: {e}")
+            return self._get_demo_course_details(course_id)
+
+    def get_learning_style_course_success(self, course_id: str, learning_style: str) -> float:
+        """Get success rate for a specific learning style in a course"""
+        if not self.driver:
+            return 0.75  # Default success rate
+            
+        query = """
+        MATCH (c:Course {id: $course_id})
+        RETURN c.visualLearnerSuccess as visual,
+               c.auditoryLearnerSuccess as auditory,
+               c.kinestheticLearnerSuccess as kinesthetic,
+               c.readingLearnerSuccess as reading
+        """
+        
+        try:
+            with self.driver.session() as session:
+                result = session.run(query, course_id=course_id)
+                record = result.single()
+                
+                if not record:
+                    return 0.75
+                
+                style_map = {
+                    'Visual': record.get('visual', 0.75),
+                    'Auditory': record.get('auditory', 0.75),
+                    'Kinesthetic': record.get('kinesthetic', 0.75),
+                    'Reading-Writing': record.get('reading', 0.75)
+                }
+                
+                return style_map.get(learning_style, 0.75)
+                
+        except Exception as e:
+            logger.error(f"Error fetching learning style success rate: {e}")
+            return 0.75
+
+    def _get_demo_course_details(self, course_id: str) -> Optional[Dict]:
+        """Return demo course details"""
+        demo_courses = {
+            "CSUU 300": {
+                "id": "CSUU 300",
+                "name": "Game Development Applications",
+                "department": "Computer Science",
+                "credits": 3,
+                "level": 300,
+                "avgDifficulty": 2,
+                "avgTimeCommitment": 7,
+                "termAvailability": ["Fall", "Spring"],
+                "instructionModes": ["In-person", "Online", "Hybrid"],
+                "tags": ["Computer Science", "Level-3", "Applications", "Game"],
+                "visualLearnerSuccess": 0.75,
+                "auditoryLearnerSuccess": 0.81,
+                "kinestheticLearnerSuccess": 0.84,
+                "readingLearnerSuccess": 0.87,
+                "prerequisites_for": [],
+                "leads_from": [],
+                "similar_courses": []
+            }
+        }
+        return demo_courses.get(course_id)
+
+    def _get_demo_complete_data(self, student_id: str) -> Dict:
+        """Return all demo data for a student in one structure"""
+        student = self._get_demo_student_details(student_id)
+        if not student:
+            return None
+            
+        return {
+            'student': student,
+            'degree_info': {
+                'total_credits_completed': 60,
+                'estimated_total_credits': 120
+            },
+            'completed_courses': self._get_demo_completed_courses(student_id),
+            'enrolled_courses': self._get_demo_enrolled_courses(student_id)
+        }
+
+    def create_sample_data(self):
+        """Create sample data matching the new schema format"""
+        if not self.driver:
+            logger.warning("Neo4j not connected, cannot create sample data")
+            return False
+            
+        try:
+            with self.driver.session() as session:
+                # Create sample student
+                student_query = """
+                CREATE (s:Student {
+                    id: "RE14884",
+                    name: "Nicholas Berry",
+                    enrollmentDate: date("2024-03-27"),
+                    expectedGraduation: date("2027-07-19"),
+                    learningStyle: "Auditory",
+                    preferredCourseLoad: 5,
+                    preferredPace: "Standard",
+                    workHoursPerWeek: 10,
+                    financialAidStatus: "Self-Pay",
+                    preferredInstructionMode: "In-person"
+                })
+                """
+                session.run(student_query)
+                
+                # Create sample courses
+                course_queries = [
+                    """
+                    CREATE (c:Course {
+                        id: "CSUU 300",
+                        name: "Game Development Applications",
+                        department: "Computer Science",
+                        credits: 3,
+                        level: 300,
+                        avgDifficulty: 2,
+                        avgTimeCommitment: 7,
+                        termAvailability: ["Fall", "Spring"],
+                        instructionModes: ["In-person", "Online", "Hybrid"],
+                        tags: ["Computer Science", "Level-3", "Applications", "Game"],
+                        visualLearnerSuccess: 0.75,
+                        auditoryLearnerSuccess: 0.81,
+                        kinestheticLearnerSuccess: 0.84,
+                        readingLearnerSuccess: 0.87
+                    })
+                    """,
+                    """
+                    CREATE (c:Course {
+                        id: "CSSS 400",
+                        name: "Advanced Software Engineering",
+                        department: "Computer Science",
+                        credits: 4,
+                        level: 400,
+                        avgDifficulty: 4,
+                        avgTimeCommitment: 10,
+                        termAvailability: ["Fall", "Spring"],
+                        instructionModes: ["In-person", "Hybrid"],
+                        tags: ["Computer Science", "Level-4", "Software", "Engineering"],
+                        visualLearnerSuccess: 0.70,
+                        auditoryLearnerSuccess: 0.75,
+                        kinestheticLearnerSuccess: 0.80,
+                        readingLearnerSuccess: 0.85
+                    })
+                    """
+                ]
+                
+                for query in course_queries:
+                    session.run(query)
+                
+                # Create relationships
+                relationship_queries = [
+                    """
+                    MATCH (source:Course {id: "CSUU 300"}), (target:Course {id: "CSSS 400"})
+                    CREATE (source)-[:LEADS_TO {commonality: 0.77, successCorrelation: 0.61}]->(target)
+                    """,
+                    """
+                    MATCH (s:Student {id: "RE14884"}), (c:Course {id: "CSUU 300"})
+                    CREATE (s)-[:COMPLETED {
+                        term: "Summer2024",
+                        grade: "A",
+                        difficulty: 4,
+                        timeSpent: 7,
+                        instructionMode: "In-person",
+                        enjoyment: true
+                    }]->(c)
+                    """
+                ]
+                
+                for query in relationship_queries:
+                    session.run(query)
+                
+                logger.info("Sample data created successfully")
+                return True
+                
+        except Exception as e:
+            logger.error(f"Error creating sample data: {e}")
+            return False
 
     def __enter__(self):
         return self

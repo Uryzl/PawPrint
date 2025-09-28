@@ -186,33 +186,84 @@
                             <div class="card-body">
                                 {% if completed_courses %}
                                 <h6>Completed Courses ({{ completed_courses|length }})</h6>
-                                <div class="row">
+                                <div class="row" id="completedCoursesContainer">
                                     {% for course in completed_courses[:6] %}
-                                    <div class="col-md-4 mb-2">
+                                    <div class="col-md-4 mb-2 course-item-wrapper">
                                         <div class="course-item-small">
-                                            <div><strong>{{ course.course_code }}</strong></div>
-                                            <div><small>{{ course.course_name }}</small></div>
+                                            <div><strong>{{ course.id or course.course_id }}</strong></div>
+                                            <div><small>{{ course.name or course.course_name }}</small></div>
+                                            {% if course.grade %}
+                                            <div class="course-grade">
+                                                <span class="badge bg-success">{{ course.grade }}</span>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                    
+                                    <!-- Hidden courses for expansion -->
+                                    {% for course in completed_courses[6:] %}
+                                    <div class="col-md-4 mb-2 course-item-wrapper hidden-course" style="display: none;">
+                                        <div class="course-item-small">
+                                            <div><strong>{{ course.id or course.course_id }}</strong></div>
+                                            <div><small>{{ course.name or course.course_name }}</small></div>
+                                            {% if course.grade %}
+                                            <div class="course-grade">
+                                                <span class="badge bg-success">{{ course.grade }}</span>
+                                            </div>
+                                            {% endif %}
                                         </div>
                                     </div>
                                     {% endfor %}
                                 </div>
+                                
                                 {% if completed_courses|length > 6 %}
-                                <p class="text-muted">... and {{ completed_courses|length - 6 }} more</p>
+                                <div class="text-center mt-2">
+                                    <button class="btn btn-outline-primary btn-sm" id="toggleCompletedCourses">
+                                        <i class="fas fa-chevron-down me-1"></i>
+                                        Show {{ completed_courses|length - 6 }} more courses
+                                    </button>
+                                </div>
                                 {% endif %}
                                 {% endif %}
                                 
                                 {% if enrolled_courses %}
                                 <h6 class="mt-3">Currently Enrolled ({{ enrolled_courses|length }})</h6>
-                                <div class="row">
-                                    {% for course in enrolled_courses %}
-                                    <div class="col-md-4 mb-2">
+                                <div class="row" id="enrolledCoursesContainer">
+                                    {% for course in enrolled_courses[:6] %}
+                                    <div class="col-md-4 mb-2 course-item-wrapper">
                                         <div class="course-item-small enrolled">
-                                            <div><strong>{{ course.course_code }}</strong></div>
-                                            <div><small>{{ course.course_name }}</small></div>
+                                            <div><strong>{{ course.id or course.course_id }}</strong></div>
+                                            <div><small>{{ course.name or course.course_name }}</small></div>
+                                            <div class="course-status">
+                                                <span class="badge bg-primary">Enrolled</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                    
+                                    <!-- Hidden courses for expansion -->
+                                    {% for course in enrolled_courses[6:] %}
+                                    <div class="col-md-4 mb-2 course-item-wrapper hidden-course" style="display: none;">
+                                        <div class="course-item-small enrolled">
+                                            <div><strong>{{ course.id or course.course_id }}</strong></div>
+                                            <div><small>{{ course.name or course.course_name }}</small></div>
+                                            <div class="course-status">
+                                                <span class="badge bg-primary">Enrolled</span>
+                                            </div>
                                         </div>
                                     </div>
                                     {% endfor %}
                                 </div>
+                                
+                                {% if enrolled_courses|length > 6 %}
+                                <div class="text-center mt-2">
+                                    <button class="btn btn-outline-primary btn-sm" id="toggleEnrolledCourses">
+                                        <i class="fas fa-chevron-down me-1"></i>
+                                        Show {{ enrolled_courses|length - 6 }} more courses
+                                    </button>
+                                </div>
+                                {% endif %}
                                 {% endif %}
                             </div>
                         </div>
@@ -220,4 +271,59 @@
                 </div>
             </div>
         </div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle completed courses toggle
+    const toggleCompletedBtn = document.getElementById('toggleCompletedCourses');
+    if (toggleCompletedBtn) {
+        toggleCompletedBtn.addEventListener('click', function() {
+            const hiddenCourses = document.querySelectorAll('#completedCoursesContainer .hidden-course');
+            const isExpanded = hiddenCourses[0] && hiddenCourses[0].style.display !== 'none';
+            
+            hiddenCourses.forEach(course => {
+                course.style.display = isExpanded ? 'none' : 'block';
+            });
+            
+            const icon = this.querySelector('i');
+            const text = this.querySelector('span') || this;
+            
+            if (isExpanded) {
+                icon.className = 'fas fa-chevron-down me-1';
+                const hiddenCount = hiddenCourses.length;
+                this.innerHTML = `<i class="fas fa-chevron-down me-1"></i>Show ${hiddenCount} more courses`;
+            } else {
+                icon.className = 'fas fa-chevron-up me-1';
+                this.innerHTML = '<i class="fas fa-chevron-up me-1"></i>Show fewer courses';
+            }
+        });
+    }
+    
+    // Handle enrolled courses toggle
+    const toggleEnrolledBtn = document.getElementById('toggleEnrolledCourses');
+    if (toggleEnrolledBtn) {
+        toggleEnrolledBtn.addEventListener('click', function() {
+            const hiddenCourses = document.querySelectorAll('#enrolledCoursesContainer .hidden-course');
+            const isExpanded = hiddenCourses[0] && hiddenCourses[0].style.display !== 'none';
+            
+            hiddenCourses.forEach(course => {
+                course.style.display = isExpanded ? 'none' : 'block';
+            });
+            
+            const icon = this.querySelector('i');
+            
+            if (isExpanded) {
+                icon.className = 'fas fa-chevron-down me-1';
+                const hiddenCount = hiddenCourses.length;
+                this.innerHTML = `<i class="fas fa-chevron-down me-1"></i>Show ${hiddenCount} more courses`;
+            } else {
+                icon.className = 'fas fa-chevron-up me-1';
+                this.innerHTML = '<i class="fas fa-chevron-up me-1"></i>Show fewer courses';
+            }
+        });
+    }
+});
+</script>
 {% endblock %}
