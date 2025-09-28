@@ -291,7 +291,14 @@ def get_students():
         if not neo4j_client:
             return jsonify({"success": False, "error": "Neo4j not connected"})
         
-        students = neo4j_client.get_all_students()
+        # Check for search parameter
+        search = request.args.get('search', '').strip()
+        
+        if search:
+            students = neo4j_client.search_students(search)
+        else:
+            students = neo4j_client.get_all_students()
+            
         return jsonify({"success": True, "students": students})
     except Exception as e:
         logger.error(f"Error fetching students: {e}")
