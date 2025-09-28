@@ -857,3 +857,72 @@ body {
         transition-duration: 0.01ms !important;
     }
 }
+
+/* Degree Requirements Styling */
+.requirement-group {
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border-left: 4px solid var(--primary-color);
+    transition: background-color 0.3s ease;
+}
+
+.requirement-group:hover {
+    background: #e9ecef;
+}
+
+.requirement-group h6 {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.requirement-group .text-info {
+    display: flex;
+    align-items: center;
+    font-weight: 500;
+}
+
+/* Similar Students Styling */
+.similar-student {
+    padding: 1rem;
+    background: #ffffff;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+    transition: box-shadow 0.3s ease, transform 0.2s ease;
+}
+
+.similar-student:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+}
+
+.similarity-score {
+    margin-bottom: 0.25rem;
+}
+
+.similarity-score .badge {
+    font-size: 0.9rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 20px;
+}
+
+.similar-student h6 {
+    color: var(--dark-color);
+    font-weight: 600;
+}
+
+.similar-student .badge.bg-light {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid #dee2e6;
+}
+
+/* Degree Information Enhancement */
+.student-info-item .student-info-value {
+    font-weight: 500;
+}
+
+/* Card headers with icons */
+.card-header h5 i {
+    color: var(--primary-color);
+}

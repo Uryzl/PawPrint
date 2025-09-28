@@ -99,6 +99,7 @@ class Neo4jClient:
             
         query = """
         MATCH (s:Student)
+        OPTIONAL MATCH (s)-[:PURSUING]->(d:Degree)
         RETURN s.id as id, 
                s.name as name, 
                s.learningStyle as learning_style,
@@ -108,7 +109,8 @@ class Neo4jClient:
                s.preferredPace as preferred_pace,
                s.workHoursPerWeek as work_hours_per_week,
                s.financialAidStatus as financial_aid_status,
-               s.preferredInstructionMode as preferred_instruction_mode
+               s.preferredInstructionMode as preferred_instruction_mode,
+               d.name as degree_name
         ORDER BY s.name
         LIMIT $limit
         """
@@ -135,7 +137,8 @@ class Neo4jClient:
                 "preferred_pace": "Standard",
                 "work_hours_per_week": 10,
                 "financial_aid_status": "Self-Pay",
-                "preferred_instruction_mode": "In-person"
+                "preferred_instruction_mode": "In-person",
+                "degree_name": "Bachelor of Science in Computer Science"
             },
             {
                 "id": "ST23456",
@@ -147,7 +150,8 @@ class Neo4jClient:
                 "preferred_pace": "Accelerated",
                 "work_hours_per_week": 15,
                 "financial_aid_status": "Financial Aid",
-                "preferred_instruction_mode": "Hybrid"
+                "preferred_instruction_mode": "Hybrid",
+                "degree_name": "Bachelor of Arts in Computer Science"
             },
             {
                 "id": "ST34567",
@@ -159,7 +163,8 @@ class Neo4jClient:
                 "preferred_pace": "Standard",
                 "work_hours_per_week": 8,
                 "financial_aid_status": "Scholarship",
-                "preferred_instruction_mode": "Online"
+                "preferred_instruction_mode": "Online",
+                "degree_name": "Bachelor of Science in Biology"
             },
             {
                 "id": "ST45678",
@@ -171,7 +176,47 @@ class Neo4jClient:
                 "preferred_pace": "Standard",
                 "work_hours_per_week": 12,
                 "financial_aid_status": "Self-Pay",
-                "preferred_instruction_mode": "In-person"
+                "preferred_instruction_mode": "In-person",
+                "degree_name": "Bachelor of Arts in Biology"
+            },
+            {
+                "id": "VJ74442",
+                "name": "Sarah Johnson",
+                "learning_style": "Visual",
+                "enrollment_date": "2023-08-20",
+                "expected_graduation": "2026-05-15",
+                "preferred_course_load": 4,
+                "preferred_pace": "Standard",
+                "work_hours_per_week": 15,
+                "financial_aid_status": "Financial Aid",
+                "preferred_instruction_mode": "Hybrid",
+                "degree_name": "Bachelor of Science in Computer Science"
+            },
+            {
+                "id": "YS86744",
+                "name": "Michael Chen",
+                "learning_style": "Reading-Writing",
+                "enrollment_date": "2022-08-25",
+                "expected_graduation": "2025-12-15",
+                "preferred_course_load": 5,
+                "preferred_pace": "Accelerated",
+                "work_hours_per_week": 12,
+                "financial_aid_status": "Scholarship",
+                "preferred_instruction_mode": "Online",
+                "degree_name": "Bachelor of Science in Biology"
+            },
+            {
+                "id": "OV50366",
+                "name": "Emily Rodriguez",
+                "learning_style": "Kinesthetic",
+                "enrollment_date": "2023-01-15",
+                "expected_graduation": "2026-08-20",
+                "preferred_course_load": 4,
+                "preferred_pace": "Standard",
+                "work_hours_per_week": 8,
+                "financial_aid_status": "Self-Pay",
+                "preferred_instruction_mode": "In-person",
+                "degree_name": "Bachelor of Science in Biology"
             }
         ]
 
@@ -186,6 +231,7 @@ class Neo4jClient:
             
         query = """
         MATCH (s:Student)
+        OPTIONAL MATCH (s)-[:PURSUING]->(d:Degree)
         WHERE toLower(s.name) CONTAINS toLower($search_term) 
            OR toLower(s.id) CONTAINS toLower($search_term)
         RETURN s.id as id, 
@@ -197,7 +243,8 @@ class Neo4jClient:
                s.preferredPace as preferred_pace,
                s.workHoursPerWeek as work_hours_per_week,
                s.financialAidStatus as financial_aid_status,
-               s.preferredInstructionMode as preferred_instruction_mode
+               s.preferredInstructionMode as preferred_instruction_mode,
+               d.name as degree_name
         ORDER BY s.name
         LIMIT $limit
         """
@@ -276,6 +323,21 @@ class Neo4jClient:
                 "expected_graduation": "2025-08-15",
                 "degree_id": "BA-BIO",
                 "degree_name": "Bachelor of Arts in Biology",
+                "total_credits": 120
+            },
+            "RE14884": {
+                "id": "RE14884",
+                "name": "Nicholas Berry",
+                "learning_style": "Auditory",
+                "preferred_course_load": 5,
+                "preferred_pace": "Standard",
+                "work_hours_per_week": 10,
+                "financial_aid_status": "Self-Pay",
+                "preferred_instruction_mode": "In-person",
+                "enrollment_date": "2024-03-27",
+                "expected_graduation": "2027-07-19",
+                "degree_id": "BS-ComputerScience-1",
+                "degree_name": "Bachelor of Science in Computer Science",
                 "total_credits": 120
             }
         }
@@ -1468,8 +1530,12 @@ class Neo4jClient:
         MATCH (s:Student {id: $student_id})
         OPTIONAL MATCH (s)-[comp:COMPLETED]->(cc:Course)
         OPTIONAL MATCH (s)-[:ENROLLED_IN]->(ec:Course)
+        OPTIONAL MATCH (s)-[:PURSUING]->(d:Degree)
+        OPTIONAL MATCH (s)-[sim:SIMILAR_PERFORMANCE]->(similar_student:Student)
+        OPTIONAL MATCH (d)<-[:PART_OF]-(rg:RequirementGroup)
         
         RETURN s,
+               d,
                collect(DISTINCT {
                    course: cc,
                    relationship: comp,
@@ -1478,19 +1544,64 @@ class Neo4jClient:
                collect(DISTINCT {
                    course: ec,
                    type: 'enrolled'
-               }) as enrolled_courses
+               }) as enrolled_courses,
+               collect(DISTINCT {
+                   student: similar_student,
+                   relationship: sim,
+                   type: 'similar_performance'
+               }) as similar_students,
+               collect(DISTINCT rg) as requirement_groups
         """
         
         try:
             with self.driver.session() as session:
-                result = session.run(query, student_id=student_id)
+                # First, get basic student info and courses
+                basic_query = """
+                MATCH (s:Student {id: $student_id})
+                OPTIONAL MATCH (s)-[comp:COMPLETED]->(cc:Course)
+                OPTIONAL MATCH (s)-[:ENROLLED_IN]->(ec:Course)
+                
+                RETURN s.id as id,
+                       s.name as name,
+                       s.learningStyle as learning_style,
+                       s.enrollmentDate as enrollment_date,
+                       s.expectedGraduation as expected_graduation,
+                       s.preferredCourseLoad as preferred_course_load,
+                       s.preferredPace as preferred_pace,
+                       s.workHoursPerWeek as work_hours_per_week,
+                       s.financialAidStatus as financial_aid_status,
+                       s.preferredInstructionMode as preferred_instruction_mode,
+                       collect(DISTINCT {
+                           course: cc,
+                           relationship: comp,
+                           type: 'completed'
+                       }) as completed_courses,
+                       collect(DISTINCT {
+                           course: ec,
+                           type: 'enrolled'
+                       }) as enrolled_courses
+                """
+                
+                result = session.run(basic_query, student_id=student_id)
                 record = result.single()
                 
                 if not record:
-                    return None
+                    logger.warning(f"Student {student_id} not found in database, using demo data")
+                    return self._get_demo_complete_data(student_id)
                 
-                # Process the comprehensive result
-                student_data = self._convert_neo4j_types(dict(record['s']))
+                # Process basic student data
+                student_data = {
+                    'id': record['id'],
+                    'name': record['name'],
+                    'learning_style': record['learning_style'],
+                    'enrollment_date': self._convert_neo4j_types(record['enrollment_date']),
+                    'expected_graduation': self._convert_neo4j_types(record['expected_graduation']),
+                    'preferred_course_load': record['preferred_course_load'],
+                    'preferred_pace': record['preferred_pace'],
+                    'work_hours_per_week': record['work_hours_per_week'],
+                    'financial_aid_status': record['financial_aid_status'],
+                    'preferred_instruction_mode': record['preferred_instruction_mode']
+                }
                 
                 # Process completed courses with relationship data
                 completed = []
@@ -1518,25 +1629,76 @@ class Neo4jClient:
                     if item['course']:
                         enrolled.append(self._convert_neo4j_types(dict(item['course'])))
                 
+                # Now get additional relationships separately
+                degree_data = None
+                similar_students = []
+                requirement_groups = []
+                
+                try:
+                    # Get degree info
+                    degree_query = """
+                    MATCH (s:Student {id: $student_id})-[:PURSUING]->(d:Degree)
+                    RETURN d
+                    """
+                    degree_result = session.run(degree_query, student_id=student_id)
+                    degree_record = degree_result.single()
+                    if degree_record:
+                        degree_data = self._convert_neo4j_types(dict(degree_record['d']))
+                    
+                    # Get similar students
+                    similar_query = """
+                    MATCH (s:Student {id: $student_id})-[sim:SIMILAR_PERFORMANCE]->(similar:Student)
+                    RETURN similar, sim
+                    """
+                    similar_result = session.run(similar_query, student_id=student_id)
+                    for sim_record in similar_result:
+                        student_info = self._convert_neo4j_types(dict(sim_record['similar']))
+                        rel_data = self._convert_neo4j_types(dict(sim_record['sim']))
+                        similar_students.append({
+                            'student': student_info,
+                            'similarity': rel_data.get('similarity'),
+                            'common_courses': rel_data.get('courses', [])
+                        })
+                    
+                    # Get requirement groups if degree exists
+                    if degree_data:
+                        req_query = """
+                        MATCH (d:Degree {id: $degree_id})<-[:PART_OF]-(rg:RequirementGroup)
+                        RETURN rg
+                        """
+                        req_result = session.run(req_query, degree_id=degree_data['id'])
+                        for req_record in req_result:
+                            requirement_groups.append(self._convert_neo4j_types(dict(req_record['rg'])))
+                
+                except Exception as e:
+                    logger.warning(f"Error fetching additional relationships: {e}")
+                
                 # Calculate degree progress based on completed courses
                 total_credits_completed = sum(course.get('credits', 0) for course in completed)
+                estimated_total_credits = degree_data.get('totalCreditsRequired', 120) if degree_data else 120
                 
                 return {
                     'student': student_data,
+                    'degree': degree_data,
                     'degree_info': {
                         'total_credits_completed': total_credits_completed,
-                        'estimated_total_credits': 120  # Default, can be updated later
+                        'estimated_total_credits': estimated_total_credits,
+                        'core_credits_required': degree_data.get('coreCreditsRequired') if degree_data else None,
+                        'elective_credits_required': degree_data.get('electiveCreditsRequired') if degree_data else None
                     },
                     'completed_courses': completed,
-                    'enrolled_courses': enrolled
+                    'enrolled_courses': enrolled,
+                    'similar_students': similar_students,
+                    'requirement_groups': requirement_groups
                 }
                 
         except Exception as e:
             logger.error(f"Error fetching complete student data: {e}")
+            logger.info("Falling back to demo data")
             return self._get_demo_complete_data(student_id)
     
     def get_course_details(self, course_id: str) -> Optional[Dict]:
-        """Get detailed course information with relationships"""
+        """Get detailed course information with relationships, faculty, and scheduling"""
         if not self.driver:
             logger.warning("Neo4j not connected, returning demo data")
             return self._get_demo_course_details(course_id)
@@ -1546,6 +1708,8 @@ class Neo4jClient:
         OPTIONAL MATCH (c)-[prereq:PREREQUISITE_FOR]->(target:Course)
         OPTIONAL MATCH (source:Course)-[leads:LEADS_TO]->(c)
         OPTIONAL MATCH (c)-[similar:SIMILAR_CONTENT]->(related:Course)
+        OPTIONAL MATCH (f:Faculty)-[teaches:TEACHES]->(c)
+        OPTIONAL MATCH (c)-[:OFFERED_IN]->(t:Term)
         
         RETURN c,
                collect(DISTINCT {
@@ -1562,7 +1726,13 @@ class Neo4jClient:
                    course: related,
                    relationship: similar,
                    type: 'similar_content'
-               }) as similar_courses
+               }) as similar_courses,
+               collect(DISTINCT {
+                   faculty: f,
+                   relationship: teaches,
+                   type: 'instructor'
+               }) as instructors,
+               collect(DISTINCT t) as offered_terms
         """
         
         try:
@@ -1608,6 +1778,23 @@ class Neo4jClient:
                             'course': related_course,
                             'similarity': rel_data.get('similarity')
                         })
+                
+                # Process instructors
+                course_data['instructors'] = []
+                for item in record['instructors']:
+                    if item['faculty'] and item['relationship']:
+                        faculty_data = self._convert_neo4j_types(dict(item['faculty']))
+                        rel_data = self._convert_neo4j_types(dict(item['relationship']))
+                        course_data['instructors'].append({
+                            'faculty': faculty_data,
+                            'teaching_terms': rel_data.get('terms', [])
+                        })
+                
+                # Process offered terms
+                course_data['offered_terms'] = []
+                for term in record['offered_terms']:
+                    if term:
+                        course_data['offered_terms'].append(self._convert_neo4j_types(dict(term)))
                 
                 return course_data
                 
@@ -1674,21 +1861,664 @@ class Neo4jClient:
         }
         return demo_courses.get(course_id)
 
+    def _get_demo_faculty_info(self, faculty_id: str) -> Dict:
+        """Return demo faculty information"""
+        demo_faculty = {
+            "F01030": {
+                "faculty": {
+                    "id": "F01030",
+                    "name": "Professor Calvin Brown",
+                    "department": "Computer Science",
+                    "teachingStyle": ["Project-Based"],
+                    "avgRating": 4.0
+                },
+                "teaching_assignments": [
+                    {
+                        "course": {
+                            "id": "CSUU 300",
+                            "name": "Game Development Applications"
+                        },
+                        "terms": ["Fall", "Spring"]
+                    }
+                ]
+            },
+            "F01012": {
+                "faculty": {
+                    "id": "F01012",
+                    "name": "Dr. Sarah Martinez",
+                    "department": "Computer Science",
+                    "teachingStyle": ["Lecture", "Discussion"],
+                    "avgRating": 4.2
+                },
+                "teaching_assignments": [
+                    {
+                        "course": {
+                            "id": "CSJJ 300",
+                            "name": "Advanced Algorithms"
+                        },
+                        "terms": ["Fall", "Spring"]
+                    }
+                ]
+            },
+            "F01045": {
+                "faculty": {
+                    "id": "F01045",
+                    "name": "Professor Maria Rodriguez",
+                    "department": "Biology",
+                    "teachingStyle": ["Hands-On", "Project-Based"],
+                    "avgRating": 4.5
+                },
+                "teaching_assignments": [
+                    {
+                        "course": {
+                            "id": "BTTT 100",
+                            "name": "Introduction to Biology Lab"
+                        },
+                        "terms": ["Spring"]
+                    }
+                ]
+            },
+            "F01056": {
+                "faculty": {
+                    "id": "F01056",
+                    "name": "Dr. James Wilson",
+                    "department": "Mathematics",
+                    "teachingStyle": ["Lecture", "Problem-Solving"],
+                    "avgRating": 3.8
+                },
+                "teaching_assignments": [
+                    {
+                        "course": {
+                            "id": "BKKK 100",
+                            "name": "Introduction to Biology"
+                        },
+                        "terms": ["Fall"]
+                    }
+                ]
+            }
+        }
+        return demo_faculty.get(faculty_id, {"faculty": None, "teaching_assignments": []})
+
+    def _get_demo_course_schedule(self, course_id: str) -> Dict:
+        """Return demo course scheduling information"""
+        demo_schedules = {
+            "CSUU 300": {
+                "course": {
+                    "id": "CSUU 300",
+                    "name": "Game Development Applications",
+                    "department": "Computer Science"
+                },
+                "instructors": [
+                    {
+                        "faculty": {
+                            "id": "F01030",
+                            "name": "Professor Calvin Brown",
+                            "teachingStyle": ["Project-Based"],
+                            "avgRating": 4.0
+                        },
+                        "teaching_terms": ["Fall", "Spring"]
+                    }
+                ],
+                "offered_terms": [
+                    {
+                        "id": "Fall2024",
+                        "name": "Fall 2024",
+                        "startDate": "2024-08-15",
+                        "endDate": "2024-12-15",
+                        "type": "Fall"
+                    },
+                    {
+                        "id": "Spring2025",
+                        "name": "Spring 2025",
+                        "startDate": "2025-01-15",
+                        "endDate": "2025-05-15",
+                        "type": "Spring"
+                    }
+                ]
+            },
+            "BTTT 100": {
+                "course": {
+                    "id": "BTTT 100",
+                    "name": "Introduction to Biology Lab",
+                    "department": "Biology"
+                },
+                "instructors": [
+                    {
+                        "faculty": {
+                            "id": "F01045",
+                            "name": "Professor Maria Rodriguez",
+                            "teachingStyle": ["Hands-On", "Project-Based"],
+                            "avgRating": 4.5
+                        },
+                        "teaching_terms": ["Spring"]
+                    }
+                ],
+                "offered_terms": [
+                    {
+                        "id": "Spring2024",
+                        "name": "Spring 2024",
+                        "startDate": "2024-01-15",
+                        "endDate": "2024-05-15",
+                        "type": "Spring"
+                    }
+                ]
+            },
+            "CSCC 200": {
+                "course": {
+                    "id": "CSCC 200",
+                    "name": "Computer Science II",
+                    "department": "Computer Science"
+                },
+                "instructors": [
+                    {
+                        "faculty": {
+                            "id": "F01012",
+                            "name": "Dr. Sarah Martinez",
+                            "teachingStyle": ["Lecture", "Discussion"],
+                            "avgRating": 4.2
+                        },
+                        "teaching_terms": ["Fall", "Spring"]
+                    }
+                ],
+                "offered_terms": [
+                    {
+                        "id": "Fall2024",
+                        "name": "Fall 2024",
+                        "startDate": "2024-08-15",
+                        "endDate": "2024-12-15",
+                        "type": "Fall"
+                    }
+                ]
+            },
+            "BKKK 100": {
+                "course": {
+                    "id": "BKKK 100",
+                    "name": "Introduction to Biology",
+                    "department": "Biology"
+                },
+                "instructors": [
+                    {
+                        "faculty": {
+                            "id": "F01056",
+                            "name": "Dr. James Wilson",
+                            "teachingStyle": ["Lecture", "Problem-Solving"],
+                            "avgRating": 3.8
+                        },
+                        "teaching_terms": ["Fall"]
+                    }
+                ],
+                "offered_terms": [
+                    {
+                        "id": "Fall2024",
+                        "name": "Fall 2024",
+                        "startDate": "2024-08-15",
+                        "endDate": "2024-12-15",
+                        "type": "Fall"
+                    }
+                ]
+            }
+        }
+        return demo_schedules.get(course_id, {"course": None, "instructors": [], "offered_terms": []})
+
     def _get_demo_complete_data(self, student_id: str) -> Dict:
         """Return all demo data for a student in one structure"""
         student = self._get_demo_student_details(student_id)
         if not student:
             return None
-            
+        
+        # Demo degree data
+        demo_degrees = {
+            "RE14884": {
+                "id": "BS-ComputerScience-1",
+                "name": "Bachelor of Science in Computer Science",
+                "department": "Computer Science",
+                "type": "Bachelor",
+                "totalCreditsRequired": 120,
+                "coreCreditsRequired": 75,
+                "electiveCreditsRequired": 45
+            },
+            "VJ74442": {
+                "id": "BS-ComputerScience-1",
+                "name": "Bachelor of Science in Computer Science",
+                "department": "Computer Science",
+                "type": "Bachelor",
+                "totalCreditsRequired": 120,
+                "coreCreditsRequired": 75,
+                "electiveCreditsRequired": 45
+            }
+        }
+        
+        # Demo similar students
+        demo_similar_students = {
+            "RE14884": [
+                {
+                    "student": {
+                        "id": "VJ74442",
+                        "name": "Sarah Johnson",
+                        "learningStyle": "Visual"
+                    },
+                    "similarity": 0.88,
+                    "common_courses": ["CSUU 300", "CSCC 200"]
+                }
+            ],
+            "YS86744": [
+                {
+                    "student": {
+                        "id": "OV50366",
+                        "name": "Emily Rodriguez",
+                        "learningStyle": "Kinesthetic"
+                    },
+                    "similarity": 0.94,
+                    "common_courses": ["CSCC 200", "BKKK 100", "BDDD 200", "BQQQ 200"]
+                }
+            ]
+        }
+        
+        # Demo requirement groups
+        demo_requirement_groups = {
+            "RE14884": [
+                {
+                    "id": "REQ-ELECTIVE-1-BS-ComputerScience-1",
+                    "name": "Computer Science Elective Requirements - Group 1",
+                    "description": "Elective courses for Bachelor of Science in Computer Science",
+                    "minimumCourses": 1,
+                    "minimumCredits": 3
+                }
+            ],
+            "VJ74442": [
+                {
+                    "id": "REQ-ELECTIVE-1-BS-ComputerScience-1",
+                    "name": "Computer Science Elective Requirements - Group 1",
+                    "description": "Elective courses for Bachelor of Science in Computer Science",
+                    "minimumCourses": 1,
+                    "minimumCredits": 3
+                }
+            ]
+        }
+        
+        degree = demo_degrees.get(student_id)
+        similar_students = demo_similar_students.get(student_id, [])
+        requirement_groups = demo_requirement_groups.get(student_id, [])
+        
+        # Calculate completed credits
+        completed_courses = self._get_demo_completed_courses(student_id)
+        total_credits_completed = sum(course.get('credits', 0) for course in completed_courses)
+        estimated_total_credits = degree.get('totalCreditsRequired', 120) if degree else 120
+        
         return {
             'student': student,
+            'degree': degree,
             'degree_info': {
-                'total_credits_completed': 60,
-                'estimated_total_credits': 120
+                'total_credits_completed': total_credits_completed,
+                'estimated_total_credits': estimated_total_credits,
+                'core_credits_required': degree.get('coreCreditsRequired') if degree else None,
+                'elective_credits_required': degree.get('electiveCreditsRequired') if degree else None
             },
-            'completed_courses': self._get_demo_completed_courses(student_id),
-            'enrolled_courses': self._get_demo_enrolled_courses(student_id)
+            'completed_courses': completed_courses,
+            'enrolled_courses': self._get_demo_enrolled_courses(student_id),
+            'similar_students': similar_students,
+            'requirement_groups': requirement_groups
         }
+
+    def get_degree_requirements(self, degree_id: str) -> Optional[Dict]:
+        """Get degree requirements and requirement groups"""
+        if not self.driver:
+            logger.warning("Neo4j not connected, returning demo data")
+            return None
+            
+        query = """
+        MATCH (d:Degree {id: $degree_id})
+        OPTIONAL MATCH (d)<-[:PART_OF]-(rg:RequirementGroup)
+        OPTIONAL MATCH (c:Course)-[:FULFILLS]->(rg)
+        
+        RETURN d,
+               collect(DISTINCT {
+                   requirement_group: rg,
+                   fulfilling_courses: collect(DISTINCT c)
+               }) as requirements
+        """
+        
+        try:
+            with self.driver.session() as session:
+                result = session.run(query, degree_id=degree_id)
+                record = result.single()
+                
+                if not record:
+                    return None
+                
+                degree_data = self._convert_neo4j_types(dict(record['d']))
+                
+                requirements = []
+                for item in record['requirements']:
+                    if item['requirement_group']:
+                        req_data = self._convert_neo4j_types(dict(item['requirement_group']))
+                        req_data['fulfilling_courses'] = [
+                            self._convert_neo4j_types(dict(course)) 
+                            for course in item['fulfilling_courses'] if course
+                        ]
+                        requirements.append(req_data)
+                
+                return {
+                    'degree': degree_data,
+                    'requirements': requirements
+                }
+                
+        except Exception as e:
+            logger.error(f"Error fetching degree requirements: {e}")
+            return None
+
+    def get_similar_students(self, student_id: str) -> List[Dict]:
+        """Get students with similar performance patterns"""
+        if not self.driver:
+            logger.warning("Neo4j not connected, returning demo data")
+            return []
+            
+        query = """
+        MATCH (s:Student {id: $student_id})-[sim:SIMILAR_PERFORMANCE]->(similar:Student)
+        RETURN similar, sim
+        ORDER BY sim.similarity DESC
+        """
+        
+        try:
+            with self.driver.session() as session:
+                result = session.run(query, student_id=student_id)
+                similar_students = []
+                
+                for record in result:
+                    student_data = self._convert_neo4j_types(dict(record['similar']))
+                    similarity_data = self._convert_neo4j_types(dict(record['sim']))
+                    
+                    similar_students.append({
+                        'student': student_data,
+                        'similarity': similarity_data.get('similarity'),
+                        'common_courses': similarity_data.get('courses', [])
+                    })
+                
+                return similar_students
+                
+        except Exception as e:
+            logger.error(f"Error fetching similar students: {e}")
+            return []
+
+    def get_requirement_group_courses(self, requirement_group_id: str) -> List[Dict]:
+        """Get courses that fulfill a specific requirement group"""
+        if not self.driver:
+            logger.warning("Neo4j not connected, returning demo data")
+            return []
+            
+        query = """
+        MATCH (rg:RequirementGroup {id: $requirement_group_id})<-[:FULFILLS]-(c:Course)
+        RETURN c
+        ORDER BY c.level, c.name
+        """
+        
+        try:
+            with self.driver.session() as session:
+                result = session.run(query, requirement_group_id=requirement_group_id)
+                courses = []
+                
+                for record in result:
+                    course_data = self._convert_neo4j_types(dict(record['c']))
+                    courses.append(course_data)
+                
+                return courses
+                
+        except Exception as e:
+            logger.error(f"Error fetching requirement group courses: {e}")
+            return []
+
+    def get_faculty_info(self, faculty_id: str) -> Optional[Dict]:
+        """Get faculty information with teaching assignments"""
+        if not self.driver:
+            logger.warning("Neo4j not connected, returning demo data")
+            return self._get_demo_faculty_info(faculty_id)
+            
+        query = """
+        MATCH (f:Faculty {id: $faculty_id})
+        OPTIONAL MATCH (f)-[teaches:TEACHES]->(c:Course)
+        
+        RETURN f,
+               collect(DISTINCT {
+                   course: c,
+                   relationship: teaches,
+                   type: 'teaches'
+               }) as teaching_assignments
+        """
+        
+        try:
+            with self.driver.session() as session:
+                result = session.run(query, faculty_id=faculty_id)
+                record = result.single()
+                
+                if not record:
+                    return None
+                
+                faculty_data = self._convert_neo4j_types(dict(record['f']))
+                
+                # Process teaching assignments
+                teaching_assignments = []
+                for item in record['teaching_assignments']:
+                    if item['course'] and item['relationship']:
+                        course_data = self._convert_neo4j_types(dict(item['course']))
+                        rel_data = self._convert_neo4j_types(dict(item['relationship']))
+                        teaching_assignments.append({
+                            'course': course_data,
+                            'terms': rel_data.get('terms', [])
+                        })
+                
+                return {
+                    'faculty': faculty_data,
+                    'teaching_assignments': teaching_assignments
+                }
+                
+        except Exception as e:
+            logger.error(f"Error fetching faculty info: {e}")
+            return self._get_demo_faculty_info(faculty_id)
+
+    def get_course_schedule_info(self, course_id: str) -> Optional[Dict]:
+        """Get course scheduling information including faculty and terms"""
+        if not self.driver:
+            logger.warning("Neo4j not connected, returning demo data")
+            return self._get_demo_course_schedule(course_id)
+            
+        query = """
+        MATCH (c:Course {id: $course_id})
+        OPTIONAL MATCH (f:Faculty)-[teaches:TEACHES]->(c)
+        OPTIONAL MATCH (c)-[:OFFERED_IN]->(t:Term)
+        
+        RETURN c,
+               collect(DISTINCT {
+                   faculty: f,
+                   relationship: teaches,
+                   type: 'instructor'
+               }) as instructors,
+               collect(DISTINCT t) as offered_terms
+        """
+        
+        try:
+            with self.driver.session() as session:
+                result = session.run(query, course_id=course_id)
+                record = result.single()
+                
+                if not record:
+                    return None
+                
+                course_data = self._convert_neo4j_types(dict(record['c']))
+                
+                # Process instructors
+                instructors = []
+                for item in record['instructors']:
+                    if item['faculty'] and item['relationship']:
+                        faculty_data = self._convert_neo4j_types(dict(item['faculty']))
+                        rel_data = self._convert_neo4j_types(dict(item['relationship']))
+                        instructors.append({
+                            'faculty': faculty_data,
+                            'teaching_terms': rel_data.get('terms', [])
+                        })
+                
+                # Process offered terms
+                offered_terms = []
+                for term in record['offered_terms']:
+                    if term:
+                        offered_terms.append(self._convert_neo4j_types(dict(term)))
+                
+                return {
+                    'course': course_data,
+                    'instructors': instructors,
+                    'offered_terms': offered_terms
+                }
+                
+        except Exception as e:
+            logger.error(f"Error fetching course schedule info: {e}")
+            return self._get_demo_course_schedule(course_id)
+
+    def get_all_faculty(self) -> List[Dict]:
+        """Get all faculty members with their basic information"""
+        if not self.driver:
+            logger.warning("Neo4j not connected, returning demo data")
+            return self._get_demo_all_faculty()
+            
+        query = """
+        MATCH (f:Faculty)
+        OPTIONAL MATCH (f)-[teaches:TEACHES]->(c:Course)
+        
+        RETURN f.id as id, f.name as name, f.department as department,
+               f.teachingStyle as teaching_styles, f.avgRating as avg_rating,
+               collect(DISTINCT c.name) as courses_taught
+        ORDER BY f.department, f.name
+        """
+        
+        try:
+            with self.driver.session() as session:
+                result = session.run(query)
+                faculty_list = []
+                for record in result:
+                    faculty_list.append({
+                        'id': record['id'],
+                        'name': record['name'],
+                        'department': record['department'],
+                        'teaching_styles': record['teaching_styles'] or [],
+                        'avg_rating': record['avg_rating'] or 3.5,
+                        'courses_taught': record['courses_taught'] or []
+                    })
+                return faculty_list
+        except Exception as e:
+            logger.error(f"Error fetching all faculty: {e}")
+            return self._get_demo_all_faculty()
+
+    def _get_demo_all_faculty(self) -> List[Dict]:
+        """Return demo faculty list"""
+        return [
+            {
+                'id': 'F01030',
+                'name': 'Professor Calvin Brown',
+                'department': 'Computer Science',
+                'teaching_styles': ['Project-Based'],
+                'avg_rating': 4.0,
+                'courses_taught': ['Game Development Applications']
+            },
+            {
+                'id': 'F01012',
+                'name': 'Dr. Sarah Martinez',
+                'department': 'Computer Science',
+                'teaching_styles': ['Lecture', 'Discussion'],
+                'avg_rating': 4.2,
+                'courses_taught': ['Advanced Algorithms']
+            },
+            {
+                'id': 'F01045',
+                'name': 'Professor Maria Rodriguez',
+                'department': 'Biology',
+                'teaching_styles': ['Hands-On', 'Project-Based'],
+                'avg_rating': 4.5,
+                'courses_taught': ['Introduction to Biology']
+            },
+            {
+                'id': 'F01056',
+                'name': 'Dr. James Wilson',
+                'department': 'Mathematics',
+                'teaching_styles': ['Lecture', 'Problem-Solving'],
+                'avg_rating': 3.8,
+                'courses_taught': ['Calculus I', 'Linear Algebra']
+            },
+            {
+                'id': 'F01067',
+                'name': 'Professor Lisa Chen',
+                'department': 'Computer Science',
+                'teaching_styles': ['Hands-On', 'Lab'],
+                'avg_rating': 4.3,
+                'courses_taught': ['Data Structures', 'Algorithms']
+            }
+        ]
+
+    def get_faculty_student_compatibility(self, faculty_id: str, student_learning_style: str) -> Dict:
+        """Analyze faculty-student compatibility based on teaching style and learning preferences"""
+        if not self.driver:
+            logger.warning("Neo4j not connected, returning demo data")
+            return self._get_demo_faculty_compatibility(faculty_id, student_learning_style)
+            
+        query = """
+        MATCH (f:Faculty {id: $faculty_id})
+        RETURN f.teachingStyle as teaching_styles, f.avgRating as avg_rating
+        """
+        
+        try:
+            with self.driver.session() as session:
+                result = session.run(query, faculty_id=faculty_id)
+                record = result.single()
+                
+                if not record:
+                    return {"compatibility_score": 0.5, "notes": "Faculty not found"}
+                
+                teaching_styles = record['teaching_styles'] or []
+                avg_rating = record['avg_rating'] or 3.0
+                
+                # Calculate compatibility based on learning/teaching style matching
+                compatibility_scores = {
+                    "Visual": {"Project-Based": 0.9, "Lecture": 0.6, "Discussion": 0.7, "Hands-On": 0.8, "Lab": 0.85, "Problem-Solving": 0.75, 
+                              "Flipped Classroom": 0.8, "Research-Oriented": 0.7, "Socratic": 0.65, "Activity-Based": 0.85, 
+                              "Demonstrative": 0.9, "Case Study": 0.75, "Collaborative": 0.7},
+                    "Auditory": {"Lecture": 0.9, "Discussion": 0.8, "Project-Based": 0.7, "Hands-On": 0.6, "Lab": 0.5, "Problem-Solving": 0.8,
+                                "Flipped Classroom": 0.75, "Research-Oriented": 0.6, "Socratic": 0.9, "Activity-Based": 0.7, 
+                                "Demonstrative": 0.8, "Case Study": 0.85, "Collaborative": 0.85},
+                    "Kinesthetic": {"Hands-On": 0.9, "Project-Based": 0.8, "Discussion": 0.6, "Lecture": 0.4, "Lab": 0.9, "Problem-Solving": 0.8,
+                                   "Flipped Classroom": 0.85, "Research-Oriented": 0.8, "Socratic": 0.5, "Activity-Based": 0.95, 
+                                   "Demonstrative": 0.7, "Case Study": 0.6, "Collaborative": 0.8},
+                    "Reading-Writing": {"Lecture": 0.7, "Discussion": 0.8, "Project-Based": 0.6, "Hands-On": 0.5, "Lab": 0.6, "Problem-Solving": 0.75,
+                                       "Flipped Classroom": 0.7, "Research-Oriented": 0.9, "Socratic": 0.8, "Activity-Based": 0.6, 
+                                       "Demonstrative": 0.5, "Case Study": 0.9, "Collaborative": 0.75}
+                }
+                
+                base_scores = compatibility_scores.get(student_learning_style, {})
+                style_score = max([base_scores.get(style, 0.5) for style in teaching_styles], default=0.5)
+                
+                # Factor in average rating (normalize to 0-1 scale)
+                rating_factor = (avg_rating - 1) / 4  # Assuming 1-5 scale
+                
+                # Combined score
+                final_score = (style_score * 0.7) + (rating_factor * 0.3)
+                
+                compatibility_notes = []
+                if final_score >= 0.8:
+                    compatibility_notes.append("Excellent match")
+                elif final_score >= 0.6:
+                    compatibility_notes.append("Good compatibility")
+                else:
+                    compatibility_notes.append("Consider alternative sections")
+                
+                if avg_rating >= 4.0:
+                    compatibility_notes.append("Highly rated instructor")
+                
+                return {
+                    "compatibility_score": round(final_score, 2),
+                    "teaching_styles": teaching_styles,
+                    "avg_rating": avg_rating,
+                    "notes": " | ".join(compatibility_notes)
+                }
+                
+        except Exception as e:
+            logger.error(f"Error calculating faculty compatibility: {e}")
+            return {"compatibility_score": 0.5, "notes": "Error calculating compatibility"}
 
     def create_sample_data(self):
         """Create sample data matching the new schema format"""
@@ -1698,22 +2528,219 @@ class Neo4jClient:
             
         try:
             with self.driver.session() as session:
-                # Create sample student
-                student_query = """
-                CREATE (s:Student {
-                    id: "RE14884",
-                    name: "Nicholas Berry",
-                    enrollmentDate: date("2024-03-27"),
-                    expectedGraduation: date("2027-07-19"),
-                    learningStyle: "Auditory",
-                    preferredCourseLoad: 5,
-                    preferredPace: "Standard",
-                    workHoursPerWeek: 10,
-                    financialAidStatus: "Self-Pay",
-                    preferredInstructionMode: "In-person"
-                })
-                """
-                session.run(student_query)
+                # Create sample students
+                student_queries = [
+                    """
+                    CREATE (s:Student {
+                        id: "RE14884",
+                        name: "Nicholas Berry",
+                        enrollmentDate: date("2024-03-27"),
+                        expectedGraduation: date("2027-07-19"),
+                        learningStyle: "Auditory",
+                        preferredCourseLoad: 5,
+                        preferredPace: "Standard",
+                        workHoursPerWeek: 10,
+                        financialAidStatus: "Self-Pay",
+                        preferredInstructionMode: "In-person"
+                    })
+                    """,
+                    """
+                    CREATE (s:Student {
+                        id: "VJ74442",
+                        name: "Sarah Johnson",
+                        enrollmentDate: date("2023-08-20"),
+                        expectedGraduation: date("2026-05-15"),
+                        learningStyle: "Visual",
+                        preferredCourseLoad: 4,
+                        preferredPace: "Standard",
+                        workHoursPerWeek: 15,
+                        financialAidStatus: "Financial Aid",
+                        preferredInstructionMode: "Hybrid"
+                    })
+                    """,
+                    """
+                    CREATE (s:Student {
+                        id: "YS86744",
+                        name: "Michael Chen",
+                        enrollmentDate: date("2022-08-25"),
+                        expectedGraduation: date("2025-12-15"),
+                        learningStyle: "Reading-Writing",
+                        preferredCourseLoad: 5,
+                        preferredPace: "Accelerated",
+                        workHoursPerWeek: 12,
+                        financialAidStatus: "Scholarship",
+                        preferredInstructionMode: "Online"
+                    })
+                    """,
+                    """
+                    CREATE (s:Student {
+                        id: "OV50366",
+                        name: "Emily Rodriguez",
+                        enrollmentDate: date("2023-01-15"),
+                        expectedGraduation: date("2026-08-20"),
+                        learningStyle: "Kinesthetic",
+                        preferredCourseLoad: 4,
+                        preferredPace: "Standard",
+                        workHoursPerWeek: 8,
+                        financialAidStatus: "Self-Pay",
+                        preferredInstructionMode: "In-person"
+                    })
+                    """
+                ]
+                
+                for query in student_queries:
+                    session.run(query)
+                
+                # Create sample degrees
+                degree_queries = [
+                    """
+                    CREATE (d:Degree {
+                        id: "BS-ComputerScience-1",
+                        name: "Bachelor of Science in Computer Science",
+                        department: "Computer Science",
+                        type: "Bachelor",
+                        totalCreditsRequired: 120,
+                        coreCreditsRequired: 75,
+                        electiveCreditsRequired: 45
+                    })
+                    """,
+                    """
+                    CREATE (d:Degree {
+                        id: "BS-Biology-1",
+                        name: "Bachelor of Science in Biology",
+                        department: "Biology",
+                        type: "Bachelor",
+                        totalCreditsRequired: 120,
+                        coreCreditsRequired: 65,
+                        electiveCreditsRequired: 55
+                    })
+                    """,
+                    """
+                    CREATE (d:Degree {
+                        id: "BA-Biology-2",
+                        name: "Bachelor of Arts in Biology",
+                        department: "Biology",
+                        type: "Bachelor",
+                        totalCreditsRequired: 120,
+                        coreCreditsRequired: 65,
+                        electiveCreditsRequired: 55
+                    })
+                    """
+                ]
+                
+                for query in degree_queries:
+                    session.run(query)
+                
+                # Create sample requirement groups
+                requirement_queries = [
+                    """
+                    CREATE (r:RequirementGroup {
+                        id: "REQ-ELECTIVE-1-BS-ComputerScience-1",
+                        name: "Computer Science Elective Requirements - Group 1",
+                        description: "Elective courses for Bachelor of Science in Computer Science",
+                        minimumCourses: 1,
+                        minimumCredits: 3
+                    })
+                    """,
+                    """
+                    CREATE (r:RequirementGroup {
+                        id: "REQ-SPECIALIZATION-1-BS-Biology-1",
+                        name: "Biology Specialization Requirements",
+                        description: "Specialized courses for Biology major",
+                        minimumCourses: 2,
+                        minimumCredits: 6
+                    })
+                    """,
+                    """
+                    CREATE (r:RequirementGroup {
+                        id: "REQ-CONCENTRATION-2-BA-Biology-2",
+                        name: "Biology Concentration Group 2",
+                        description: "Advanced concentration courses for BA in Biology",
+                        minimumCourses: 1,
+                        minimumCredits: 4
+                    })
+                    """
+                ]
+                
+                for query in requirement_queries:
+                    session.run(query)
+                
+                # Create sample faculty
+                faculty_queries = [
+                    """
+                    CREATE (f:Faculty {
+                        id: "F01030",
+                        name: "Professor Calvin Brown",
+                        department: "Computer Science",
+                        teachingStyle: ["Project-Based"],
+                        avgRating: 4.0
+                    })
+                    """,
+                    """
+                    CREATE (f:Faculty {
+                        id: "F01012",
+                        name: "Dr. Sarah Martinez",
+                        department: "Computer Science",
+                        teachingStyle: ["Lecture", "Discussion"],
+                        avgRating: 4.2
+                    })
+                    """,
+                    """
+                    CREATE (f:Faculty {
+                        id: "F01045",
+                        name: "Professor Maria Rodriguez",
+                        department: "Biology",
+                        teachingStyle: ["Hands-On", "Project-Based"],
+                        avgRating: 4.5
+                    })
+                    """
+                ]
+                
+                for query in faculty_queries:
+                    session.run(query)
+                
+                # Create sample terms
+                term_queries = [
+                    """
+                    CREATE (t:Term {
+                        id: "Summer2021",
+                        name: "Summer 2021",
+                        startDate: date("2021-06-01"),
+                        endDate: date("2021-07-30"),
+                        type: "Summer"
+                    })
+                    """,
+                    """
+                    CREATE (t:Term {
+                        id: "Fall2024",
+                        name: "Fall 2024",
+                        startDate: date("2024-08-15"),
+                        endDate: date("2024-12-15"),
+                        type: "Fall"
+                    })
+                    """,
+                    """
+                    CREATE (t:Term {
+                        id: "Spring2024",
+                        name: "Spring 2024",
+                        startDate: date("2024-01-15"),
+                        endDate: date("2024-05-15"),
+                        type: "Spring"
+                    })
+                    """,
+                    """
+                    CREATE (t:Term {
+                        id: "Spring2025",
+                        name: "Spring 2025",
+                        startDate: date("2025-01-15"),
+                        endDate: date("2025-05-15"),
+                        type: "Spring"
+                    })
+                    """
+                ]
+                
+                for query in term_queries:
+                    session.run(query)
                 
                 # Create sample courses
                 course_queries = [
@@ -1752,6 +2779,96 @@ class Neo4jClient:
                         kinestheticLearnerSuccess: 0.80,
                         readingLearnerSuccess: 0.85
                     })
+                    """,
+                    """
+                    CREATE (c:Course {
+                        id: "CSCC 200",
+                        name: "Data Structures and Algorithms",
+                        department: "Computer Science",
+                        credits: 4,
+                        level: 200,
+                        avgDifficulty: 3,
+                        avgTimeCommitment: 9,
+                        termAvailability: ["Fall", "Spring"],
+                        instructionModes: ["In-person", "Online"],
+                        tags: ["Computer Science", "Level-2", "Fundamentals"],
+                        visualLearnerSuccess: 0.72,
+                        auditoryLearnerSuccess: 0.78,
+                        kinestheticLearnerSuccess: 0.80,
+                        readingLearnerSuccess: 0.85
+                    })
+                    """,
+                    """
+                    CREATE (c:Course {
+                        id: "BKKK 100",
+                        name: "Introduction to Biology",
+                        department: "Biology",
+                        credits: 4,
+                        level: 100,
+                        avgDifficulty: 2,
+                        avgTimeCommitment: 6,
+                        termAvailability: ["Fall", "Spring", "Summer"],
+                        instructionModes: ["In-person", "Online", "Hybrid"],
+                        tags: ["Biology", "Level-1", "Fundamentals"],
+                        visualLearnerSuccess: 0.80,
+                        auditoryLearnerSuccess: 0.75,
+                        kinestheticLearnerSuccess: 0.85,
+                        readingLearnerSuccess: 0.82
+                    })
+                    """,
+                    """
+                    CREATE (c:Course {
+                        id: "BDDD 200",
+                        name: "Cell Biology",
+                        department: "Biology",
+                        credits: 4,
+                        level: 200,
+                        avgDifficulty: 3,
+                        avgTimeCommitment: 8,
+                        termAvailability: ["Fall", "Spring"],
+                        instructionModes: ["In-person", "Hybrid"],
+                        tags: ["Biology", "Level-2", "Cell", "Molecular"],
+                        visualLearnerSuccess: 0.78,
+                        auditoryLearnerSuccess: 0.73,
+                        kinestheticLearnerSuccess: 0.88,
+                        readingLearnerSuccess: 0.80
+                    })
+                    """,
+                    """
+                    CREATE (c:Course {
+                        id: "BQQQ 200",
+                        name: "Genetics",
+                        department: "Biology",
+                        credits: 4,
+                        level: 200,
+                        avgDifficulty: 4,
+                        avgTimeCommitment: 10,
+                        termAvailability: ["Fall", "Spring"],
+                        instructionModes: ["In-person"],
+                        tags: ["Biology", "Level-2", "Genetics", "Advanced"],
+                        visualLearnerSuccess: 0.75,
+                        auditoryLearnerSuccess: 0.70,
+                        kinestheticLearnerSuccess: 0.82,
+                        readingLearnerSuccess: 0.88
+                    })
+                    """,
+                    """
+                    CREATE (c:Course {
+                        id: "BYYY 100-6",
+                        name: "Biochemistry Fundamentals",
+                        department: "Biology",
+                        credits: 3,
+                        level: 100,
+                        avgDifficulty: 3,
+                        avgTimeCommitment: 8,
+                        termAvailability: ["Fall", "Spring", "Summer"],
+                        instructionModes: ["In-person", "Online"],
+                        tags: ["Biology", "Chemistry", "Level-1", "Fundamentals"],
+                        visualLearnerSuccess: 0.77,
+                        auditoryLearnerSuccess: 0.72,
+                        kinestheticLearnerSuccess: 0.85,
+                        readingLearnerSuccess: 0.83
+                    })
                     """
                 ]
                 
@@ -1760,10 +2877,12 @@ class Neo4jClient:
                 
                 # Create relationships
                 relationship_queries = [
+                    # Course relationships
                     """
                     MATCH (source:Course {id: "CSUU 300"}), (target:Course {id: "CSSS 400"})
                     CREATE (source)-[:LEADS_TO {commonality: 0.77, successCorrelation: 0.61}]->(target)
                     """,
+                    # Student-Course relationships
                     """
                     MATCH (s:Student {id: "RE14884"}), (c:Course {id: "CSUU 300"})
                     CREATE (s)-[:COMPLETED {
@@ -1774,6 +2893,83 @@ class Neo4jClient:
                         instructionMode: "In-person",
                         enjoyment: true
                     }]->(c)
+                    """,
+                    # Student-Degree relationships
+                    """
+                    MATCH (s:Student {id: "VJ74442"}), (d:Degree {id: "BS-ComputerScience-1"})
+                    CREATE (s)-[:PURSUING]->(d)
+                    """,
+                    """
+                    MATCH (s:Student {id: "RE14884"}), (d:Degree {id: "BS-ComputerScience-1"})
+                    CREATE (s)-[:PURSUING]->(d)
+                    """,
+                    # Student similarity relationships
+                    """
+                    MATCH (source:Student {id: "YS86744"}), (target:Student {id: "OV50366"})
+                    CREATE (source)-[:SIMILAR_PERFORMANCE {
+                        similarity: 0.94, 
+                        courses: ["CSCC 200", "BKKK 100", "BDDD 200", "BQQQ 200"]
+                    }]->(target)
+                    """,
+                    # Requirement group relationships
+                    """
+                    MATCH (r:RequirementGroup {id: "REQ-SPECIALIZATION-1-BS-Biology-1"}), (d:Degree {id: "BS-Biology-1"})
+                    CREATE (r)-[:PART_OF]->(d)
+                    """,
+                    """
+                    MATCH (r:RequirementGroup {id: "REQ-ELECTIVE-1-BS-ComputerScience-1"}), (d:Degree {id: "BS-ComputerScience-1"})
+                    CREATE (r)-[:PART_OF]->(d)
+                    """,
+                    """
+                    MATCH (r:RequirementGroup {id: "REQ-CONCENTRATION-2-BA-Biology-2"}), (d:Degree {id: "BA-Biology-2"})
+                    CREATE (r)-[:PART_OF]->(d)
+                    """,
+                    # Course-Requirement fulfillment relationships
+                    """
+                    MATCH (c:Course {id: "BYYY 100-6"}), (r:RequirementGroup {id: "REQ-CONCENTRATION-2-BA-Biology-2"})
+                    CREATE (c)-[:FULFILLS]->(r)
+                    """,
+                    """
+                    MATCH (c:Course {id: "CSUU 300"}), (r:RequirementGroup {id: "REQ-ELECTIVE-1-BS-ComputerScience-1"})
+                    CREATE (c)-[:FULFILLS]->(r)
+                    """,
+                    """
+                    MATCH (c:Course {id: "BDDD 200"}), (r:RequirementGroup {id: "REQ-SPECIALIZATION-1-BS-Biology-1"})
+                    CREATE (c)-[:FULFILLS]->(r)
+                    """,
+                    """
+                    MATCH (c:Course {id: "BQQQ 200"}), (r:RequirementGroup {id: "REQ-SPECIALIZATION-1-BS-Biology-1"})
+                    CREATE (c)-[:FULFILLS]->(r)
+                    """,
+                    # Faculty teaching relationships
+                    """
+                    MATCH (f:Faculty {id: "F01012"}), (c:Course {id: "CSJJ 300"})
+                    CREATE (f)-[:TEACHES {terms: ["Fall", "Spring"]}]->(c)
+                    """,
+                    """
+                    MATCH (f:Faculty {id: "F01030"}), (c:Course {id: "CSUU 300"})
+                    CREATE (f)-[:TEACHES {terms: ["Fall", "Spring"]}]->(c)
+                    """,
+                    """
+                    MATCH (f:Faculty {id: "F01045"}), (c:Course {id: "BKKK 100"})
+                    CREATE (f)-[:TEACHES {terms: ["Fall", "Spring", "Summer"]}]->(c)
+                    """,
+                    # Course-Term relationships
+                    """
+                    MATCH (c:Course {id: "BTTT 100"}), (t:Term {id: "Spring2024"})
+                    CREATE (c)-[:OFFERED_IN]->(t)
+                    """,
+                    """
+                    MATCH (c:Course {id: "CSUU 300"}), (t:Term {id: "Fall2024"})
+                    CREATE (c)-[:OFFERED_IN]->(t)
+                    """,
+                    """
+                    MATCH (c:Course {id: "CSUU 300"}), (t:Term {id: "Spring2025"})
+                    CREATE (c)-[:OFFERED_IN]->(t)
+                    """,
+                    """
+                    MATCH (c:Course {id: "BKKK 100"}), (t:Term {id: "Summer2021"})
+                    CREATE (c)-[:OFFERED_IN]->(t)
                     """
                 ]
                 
@@ -1786,6 +2982,55 @@ class Neo4jClient:
         except Exception as e:
             logger.error(f"Error creating sample data: {e}")
             return False
+
+    def _get_demo_faculty_compatibility(self, faculty_id: str, student_learning_style: str) -> Dict:
+        """Return demo compatibility analysis"""
+        demo_faculty = self._get_demo_faculty_info(faculty_id)
+        faculty_info = demo_faculty.get('faculty')
+        
+        if not faculty_info:
+            return {
+                'compatibility_score': 0.5,
+                'teaching_styles': [],
+                'avg_rating': 3.0,
+                'notes': 'Faculty not found'
+            }
+        
+        teaching_styles = faculty_info.get('teachingStyle', [])
+        avg_rating = faculty_info.get('avgRating', 3.5)
+        
+        # Compatibility scoring based on learning style and teaching style alignment
+        compatibility_map = {
+            'Visual': {'Project-Based': 0.9, 'Hands-On': 0.8, 'Discussion': 0.6, 'Lecture': 0.5, 'Lab': 0.85, 'Problem-Solving': 0.75,
+                      'Flipped Classroom': 0.8, 'Research-Oriented': 0.7, 'Socratic': 0.65, 'Activity-Based': 0.85, 
+                      'Demonstrative': 0.9, 'Case Study': 0.75, 'Collaborative': 0.7},
+            'Auditory': {'Lecture': 0.9, 'Discussion': 0.9, 'Project-Based': 0.6, 'Hands-On': 0.5, 'Lab': 0.5, 'Problem-Solving': 0.8,
+                        'Flipped Classroom': 0.75, 'Research-Oriented': 0.6, 'Socratic': 0.9, 'Activity-Based': 0.7, 
+                        'Demonstrative': 0.8, 'Case Study': 0.85, 'Collaborative': 0.85},
+            'Kinesthetic': {'Hands-On': 0.95, 'Project-Based': 0.9, 'Lab': 0.9, 'Lecture': 0.4, 'Discussion': 0.6, 'Problem-Solving': 0.8,
+                           'Flipped Classroom': 0.85, 'Research-Oriented': 0.8, 'Socratic': 0.5, 'Activity-Based': 0.95, 
+                           'Demonstrative': 0.7, 'Case Study': 0.6, 'Collaborative': 0.8},
+            'Reading-Writing': {'Discussion': 0.85, 'Lecture': 0.7, 'Project-Based': 0.6, 'Hands-On': 0.5, 'Lab': 0.6, 'Problem-Solving': 0.75,
+                               'Flipped Classroom': 0.7, 'Research-Oriented': 0.9, 'Socratic': 0.8, 'Activity-Based': 0.6, 
+                               'Demonstrative': 0.5, 'Case Study': 0.9, 'Collaborative': 0.75}
+        }
+        
+        style_matches = compatibility_map.get(student_learning_style, {})
+        compatibility_scores = [style_matches.get(style, 0.5) for style in teaching_styles]
+        base_compatibility = max(compatibility_scores) if compatibility_scores else 0.5
+        
+        rating_bonus = (avg_rating - 2.5) / 2.5 * 0.2
+        final_score = min(base_compatibility + rating_bonus, 1.0)
+        
+        best_match_style = max(teaching_styles, key=lambda s: style_matches.get(s, 0)) if teaching_styles else "Unknown"
+        notes = f"Best teaching style match: {best_match_style}. Faculty rating contributes positively to compatibility."
+        
+        return {
+            'compatibility_score': final_score,
+            'teaching_styles': teaching_styles,
+            'avg_rating': avg_rating,
+            'notes': notes
+        }
 
     def __enter__(self):
         return self
